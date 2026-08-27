@@ -1,4 +1,4 @@
-#include <qinmo/tool.h>
+#include <qinmo/tool.h> // <qinmo/tool/Random.h>
 #include <iostream>
 
 int main()
