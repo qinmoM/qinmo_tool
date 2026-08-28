@@ -1,4 +1,7 @@
-#include <qinmo/tool.h>
+#include <qinmo/tool.h> 
+// equal to :
+// #include <qinmo/tool/StringView.h> 
+// #include <qinmo/tool/StringConcat.h>
 
 int main()
 {
