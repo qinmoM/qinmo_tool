@@ -1,3 +1,7 @@
+/**
+ * @brief string concatenation of parameter pack
+ */
+
 #pragma once
 
 #include <string>
@@ -9,6 +13,7 @@
 namespace qinmo
 {
 
+/// @brief concatenate parameters into a string
 template <typename... Args>
 std::string concat(Args&&... args)
 {
@@ -21,6 +26,8 @@ std::string concat(Args&&... args)
 }
 
 
+/// @note auto append newline char.
+/// @note example : println(13, 't', "h")
 template <typename... Args>
 void println(Args&&... args)
 {
