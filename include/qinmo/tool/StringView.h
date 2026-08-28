@@ -7,6 +7,7 @@
 #include <string>
 #include <string.h>
 #include <stdint.h>
+#include <iostream>
 
 
 
@@ -60,5 +61,6 @@ private:
 
 inline bool operator==(const StringView& a, const StringView& b) { return 0 == strncmp(a.data(), b.data(), a.size()); }
 inline bool operator!=(const StringView& a, const StringView& b) { return !(a == b); }
+inline std::ostream& operator<<(std::ostream& os, const StringView& view) { os << view.to_string(); return os; }
 
 } // namespace qinmo
