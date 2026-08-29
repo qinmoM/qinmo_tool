@@ -13,6 +13,7 @@ int main()
     // StringView
     qinmo::StringView view("hello");
     qinmo::println(view, " size:", view.size(), " index_1:", view[1]);
+    std::string str = view.to_string();
 
     return 0;
 }

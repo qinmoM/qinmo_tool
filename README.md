@@ -4,6 +4,25 @@
 
 ## Tutorial
 
+```cpp
+#include <qinmo/tool.h>
+
+int main()
+{
+    // print
+    qinmo::println(qinmo::RandomInt(0, 3), 't', "h"); // output: 2th
+
+    // string view
+    qinmo::StringView view("hello");
+    std::cout << view << std::endl;
+    std::cout << view[1] << std::endl;
+
+    return 0;
+}
+```
+
+[See details.](./example/)
+
 ## Install
 
 - Clone this library into your third-party folder.

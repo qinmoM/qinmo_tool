@@ -1,3 +1,8 @@
+/**
+ * @brief random
+ * @note Get random in thread-safe
+ */
+
 #pragma once
 
 #include <random>
@@ -10,6 +15,7 @@ namespace qinmo
 
 namespace detail
 {
+/// @brief thread-safe access to the random engine
 class RandomEngine
 {
 public:
@@ -35,21 +41,25 @@ private:
 };
 
 
+/// @brief template for all of fundamental-types
 template<typename T, template<typename> class Distribution>
 class RandomUniform
 {
 public:
+    /// @brief 
     RandomUniform(T min, T max)
         : dis_(min, max)
     { }
 
 public:
+    /// @brief Temporarity acquire a random-number via static-access
     static T rand(T min, T max)
     {
         Distribution<T> dis(min, max);
         return dis(RandomEngine::getMt());
     }
 
+    /// @brief Acquire a random-number
     T rand()
     {
         return dis_(RandomEngine::getMt());
@@ -71,6 +81,7 @@ using RandomUInt32 = detail::RandomUniform<uint32_t, std::uniform_int_distributi
 using RandomInt64 = detail::RandomUniform<int64_t, std::uniform_int_distribution>;
 using RandomUInt64 = detail::RandomUniform<uint64_t, std::uniform_int_distribution>;
 
+using RandomInt = RandomInt32;
 using RandomFloat = detail::RandomUniform<float, std::uniform_real_distribution>;
 using RandomDouble = detail::RandomUniform<double, std::uniform_real_distribution>;
 
