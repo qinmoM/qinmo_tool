@@ -2,11 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(qinmo_tool)
 
 
-
 add_library(qinmo_tool
-    # ...
+    ./src/temp.cpp
 )
-
 
 
 target_compile_features(qinmo_tool
@@ -16,5 +14,5 @@ target_compile_features(qinmo_tool
 
 target_include_directories(qinmo_tool
     PUBLIC
-        ./include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
