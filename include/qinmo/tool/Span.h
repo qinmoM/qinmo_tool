@@ -24,12 +24,14 @@ public:
     using reference = element_type&;
     using const_reference = const element_type&;
     using iterator = element_type*;
-    using const_iterator = const iterator;
+    using const_iterator = const element_type*;
     using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 public:
-    // constructors, copy, and assignment
+/*
+                constructors, copy, move, and assignment
+*/
     constexpr Span() noexcept : data_(nullptr), size_(0) { }
     constexpr Span(pointer data, size_type size) : data_(data), size_(size) { }
     constexpr Span(const Span&) noexcept = default;
@@ -38,27 +40,48 @@ public:
     constexpr Span& operator=(Span&&) noexcept = default;
 
 
-    // observers
+/*
+                observers
+*/
     constexpr size_type size() const noexcept { return size_; }
     constexpr size_type size_bytes() const noexcept { return size() * sizeof(T); }
     constexpr bool empty() const noexcept { return 0 == size_; }
 
 
-    // element access
-    constexpr reference operator[](size_type index) const { return data()[index]; }
+/*
+                element access
+*/
+    /**
+     * @note not performs bounds-checking, ensure  index < size
+     */
+    constexpr reference operator[](size_type index) const{ return data()[index]; }
+    /**
+     *  @note performs bounds-checking
+     *  @note maybe have no  constexpr  in C++11
+     */
     constexpr reference at(size_type index) const
     {
-        if (index < 0 || index >= size())
+        if (index >= size())
             throw std::out_of_range("Span: index out of range.");
 
         return (*this)[index];
     }
+    /**
+     * @note not performs bounds-checking, ensure  index < size
+     * @note calling this on an empty Span is undefined behavior
+     */
     constexpr reference front() const { return (*this)[0]; }
+    /**
+     * @note not performs bounds-checking, ensure  index < size
+     * @note calling this on an empty Span is undefined behavior
+     */
     constexpr reference back() const { return (*this)[size() - 1]; }
     constexpr pointer data() const noexcept { return data_; }
 
 
-    // iterator support
+/*
+                iterator support
+*/
     constexpr iterator begin() const noexcept { return data_; }
     constexpr iterator end() const noexcept { return data_ + size(); }
     constexpr const_iterator cbegin() const noexcept { return begin(); }
