@@ -2,10 +2,14 @@
  * @brief span class
  */
 
- #include <cstddef>     // size_t
- #include <stdexcept>   // out_of_range
- #include <type_traits> // remove_cv
- #include <iterator>    // reverse_iterator
+#pragma once
+
+#include <cstddef>      // size_t
+#include <stdexcept>    // out_of_range
+#include <type_traits>  // remove_cv
+#include <iterator>     // reverse_iterator
+
+
 
 namespace qinmo
 {
@@ -35,9 +39,26 @@ public:
     constexpr Span() noexcept : data_(nullptr), size_(0) { }
     constexpr Span(pointer data, size_type size) : data_(data), size_(size) { }
     constexpr Span(const Span&) noexcept = default;
-    constexpr Span& operator=(const Span&) noexcept = default;
+    Span& operator=(const Span&) noexcept = default;
     constexpr Span(Span&&) noexcept = default;
-    constexpr Span& operator=(Span&&) noexcept = default;
+    Span& operator=(Span&&) noexcept = default;
+
+
+/*
+                subview
+*/
+    /**
+     * @note does not perform bounds-checking, ensure  count <= size
+     */
+    constexpr Span first(size_type count) const noexcept { return Span(data_, count); }
+    /**
+     * @note does not perform bounds-checking, ensure  count <= size
+     */
+    constexpr Span last(size_type count) const noexcept { return Span(data_ + size() - count, count); }
+    /**
+     * @note does not perform bounds-checking, ensure  count + offset <= size
+     */
+    constexpr Span subspan(size_type offset, size_type count) const noexcept { return Span(data_ + offset, count); }
 
 
 /*
@@ -52,7 +73,7 @@ public:
                 element access
 */
     /**
-     * @note not performs bounds-checking, ensure  index < size
+     * @note does not perform bounds-checking, ensure  index < size
      */
     constexpr reference operator[](size_type index) const{ return data()[index]; }
     /**
@@ -67,12 +88,12 @@ public:
         return (*this)[index];
     }
     /**
-     * @note not performs bounds-checking, ensure  index < size
+     * @note does not perform bounds-checking, ensure  index < size
      * @note calling this on an empty Span is undefined behavior
      */
     constexpr reference front() const { return (*this)[0]; }
     /**
-     * @note not performs bounds-checking, ensure  index < size
+     * @note does not perform bounds-checking, ensure  index < size
      * @note calling this on an empty Span is undefined behavior
      */
     constexpr reference back() const { return (*this)[size() - 1]; }
@@ -86,8 +107,8 @@ public:
     constexpr iterator end() const noexcept { return data_ + size(); }
     constexpr const_iterator cbegin() const noexcept { return begin(); }
     constexpr const_iterator cend() const noexcept { return end(); }
-    constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(end()); };
-    constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(begin()); };
+    constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(end()); }
+    constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(begin()); }
     constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
     constexpr const_reverse_iterator crend() const noexcept { return rend(); }
 
