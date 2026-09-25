@@ -26,12 +26,19 @@ std::string concat(Args&&... args)
 }
 
 
+/// @note print the concatenated string
+/// @note example : print(13, 't', "h")
+template <typename... Args>
+void print(Args&&... args)
+{
+    std::cout << concat(args...);
+}
+
 /// @note auto append newline char.
-/// @note example : println(13, 't', "h")
 template <typename... Args>
 void println(Args&&... args)
 {
-    std::cout << concat(args...) << '\n';
+    print(args..., '\n');
 }
 
 } // namespace qinmo
