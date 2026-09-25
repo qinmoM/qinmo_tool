@@ -38,6 +38,7 @@ public:
 */
     constexpr Span() noexcept : data_(nullptr), size_(0) { }
     constexpr Span(pointer data, size_type size) : data_(data), size_(size) { }
+    constexpr Span(pointer first, pointer last) : data_(data), size_(static_cast<size_type>(last - first)) { }
     constexpr Span(const Span&) noexcept = default;
     Span& operator=(const Span&) noexcept = default;
     constexpr Span(Span&&) noexcept = default;

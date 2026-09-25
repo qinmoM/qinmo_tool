@@ -36,6 +36,7 @@ public:
     /// @note Ensure len <= string length
     StringView() : data_(nullptr), size_(0) { }
     StringView(const char* ptr, size_type len) : data_(ptr), size_(len) { }
+    StringView(const char* first, const char* last) : data_(first), size_(static_cast<size_type>(last - first)) { }
     StringView(const char* ptr)
         : data_(ptr)
         , size_(static_cast<size_type>((nullptr == ptr ? 0 : ::strlen(ptr))))
