@@ -75,7 +75,7 @@ public:
     /**
      * @note does not perform bounds-checking, ensure  index < size
      */
-    constexpr reference operator[](size_type index) const{ return data()[index]; }
+    constexpr reference operator[](size_type index) const noexcept { return data()[index]; }
     /**
      *  @note performs bounds-checking
      *  @note maybe have no  constexpr  in C++11
@@ -91,12 +91,12 @@ public:
      * @note does not perform bounds-checking, ensure  index < size
      * @note calling this on an empty Span is undefined behavior
      */
-    constexpr reference front() const { return (*this)[0]; }
+    constexpr reference front() const noexcept { return (*this)[0]; }
     /**
      * @note does not perform bounds-checking, ensure  index < size
      * @note calling this on an empty Span is undefined behavior
      */
-    constexpr reference back() const { return (*this)[size() - 1]; }
+    constexpr reference back() const noexcept { return (*this)[size() - 1]; }
     constexpr pointer data() const noexcept { return data_; }
 
 

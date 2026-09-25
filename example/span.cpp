@@ -1,4 +1,4 @@
-#include <qinmo/tool.h>
+#include <qinmo/tool.h> // <qinmo/tool/Span.h>
 
 int main()
 {
@@ -12,9 +12,6 @@ int main()
     qinmo::println("the first digit of array: ", span[0]);
     qinmo::println("the second digit of array: ", span.at(1));
     qinmo::println("the third digit of array: ", span.back());
-
-
-    // iterator
     for (int i = 0; i < span.size(); ++i)
         qinmo::print(span.at(i), ' ');
 
