@@ -41,8 +41,8 @@ public:
     using const_reference = const value_type&;
     using const_iterator = const value_type*;
     using iterator = const_iterator;
+    using reverse_iterator = std::reverse_iterator<iterator>;
     using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-    using reverse_iterator = const_reverse_iterator;
     static constexpr size_type npos = size_type(-1);
 
 public:
@@ -50,25 +50,11 @@ public:
     constexpr StringView() : data_(nullptr), size_(0) { }
     /// @note Ensure len <= string length
     constexpr StringView(const char* ptr, size_type len) : data_(ptr), size_(len) { }
-    /// @note Ensure len <= string length
-    constexpr StringView(const unsigned char* ptr, size_type len)
-        : data_(static_cast<const char*>(static_cast<const void*>(ptr)))
-        , size_(len)
-    { }
     constexpr StringView(const char* first, const char* last) : data_(first), size_(static_cast<size_type>(last - first)) { }
-    constexpr StringView(const unsigned char* first, const unsigned char* last)
-        : data_(static_cast<const char*>(static_cast<const void*>(first)))
-        , size_(static_cast<size_type>(last - first))
-    { }
     /// @note evaluated at compile time for literals, but may not be in other situations
     constexpr StringView(const char* ptr)
         : data_(ptr)
         , size_(static_cast<size_type>((nullptr == ptr ? 0 : detail::constexpr_strlen(ptr))))
-    { }
-    /// @note evaluated at compile time for literals, but may not be in other situations
-    constexpr StringView(const unsigned char* ptr)
-        : data_(static_cast<const char*>(static_cast<const void*>(ptr)))
-        , size_(static_cast<size_type>((nullptr == ptr ? 0 : detail::constexpr_strlen(static_cast<const char*>(static_cast<const void*>(ptr))))))
     { }
     StringView(const std::string& string)
         : data_(string.c_str())
@@ -83,7 +69,7 @@ public:
 
     // element access
     constexpr const_reference operator[](size_type index) const noexcept { return *(data_ + index); }
-    constexpr const_reference at(size_type index) const
+    const_reference at(size_type index) const
     {
         if (index >= size())
             throw std::out_of_range(qinmo::concat("StringView::at: index(", index, ") out of range(0 ~ ", size() - 1, ')'));
@@ -122,12 +108,12 @@ public:
 
         return StringView(data() + pos, data() + std::min(pos + n, size()));
     }
-
-
-    // // deleted
-    // void set(const char* ptr) { data_ = ptr; size_ = (nullptr == ptr ? 0 : ::strlen(ptr)); }
-    // void set(const char* ptr, int len) { data_ = ptr; size_ = len; }
-    // void clear() { data_ = nullptr; size_ = 0; }
+    // constexpr int compare(StringView s) const noexcept { return traits_type::compare(data(), s.data(), std::min(size(), s.size())); }
+    // constexpr int compare(size_type pos1, size_type n1, StringView s) const;
+    // constexpr int compare(size_type pos1, size_type n1, StringView s, size_type pos2, size_type n2) const;  
+    // constexpr int compare(const char* s) const;
+    // constexpr int compare(size_type pos1, size_type n1, const char* s) const;
+    // constexpr int compare(size_type pos1, size_type n1, const char* s, size_type n2) const;
 
 
     // iterator support
@@ -135,10 +121,14 @@ public:
     constexpr const_iterator end() const noexcept { return data_ + size(); }
     constexpr const_iterator cbegin() const noexcept { return begin(); }
     constexpr const_iterator cend() const noexcept { return end(); }
-    constexpr const_reverse_iterator rbegin() const noexcept { return std::reverse_iterator(end()); }
-    constexpr const_reverse_iterator rend() const noexcept { return std::reverse_iterator(begin()); }
-    constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
-    constexpr const_reverse_iterator crend() const noexcept { return rend(); }
+    /// @note not  constexpr  in c++11
+    const_reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+    /// @note not  constexpr  in c++11
+    const_reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
+    /// @note not  constexpr  in c++11
+    const_reverse_iterator crbegin() const noexcept { return rbegin(); }
+    /// @note not  constexpr  in c++11
+    const_reverse_iterator crend() const noexcept { return rend(); }
 
 
     /// @brief construct a string

@@ -108,8 +108,8 @@ public:
     constexpr iterator end() const noexcept { return data_ + size(); }
     constexpr const_iterator cbegin() const noexcept { return begin(); }
     constexpr const_iterator cend() const noexcept { return end(); }
-    constexpr reverse_iterator rbegin() const noexcept { return std::reverse_iterator(end()); }
-    constexpr reverse_iterator rend() const noexcept { return std::reverse_iterator(begin()); }
+    constexpr reverse_iterator rbegin() const noexcept { return reverse_iterator(end()); }
+    constexpr reverse_iterator rend() const noexcept { return reverse_iterator(begin()); }
     constexpr const_reverse_iterator crbegin() const noexcept { return rbegin(); }
     constexpr const_reverse_iterator crend() const noexcept { return rend(); }
 
