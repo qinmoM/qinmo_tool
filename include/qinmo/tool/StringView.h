@@ -13,18 +13,6 @@
 namespace qinmo
 {
 
-namespace detail
-{
-
-/// @note evaluated at compile time for literals, but may not be in other situations
-constexpr std::size_t constexpr_strlen(const char* str)
-{
-    return ('\0' == *str ? 0 : 1 + constexpr_strlen(str + 1));
-}
-} // namespace detail
-
-
-
 /// @brief string view class for fast string access
 /// @note the origin string must not be freed during the lifetime of the view
 class StringView
@@ -54,7 +42,7 @@ public:
     /// @note evaluated at compile time for literals, but may not be in other situations
     constexpr StringView(const char* ptr)
         : data_(ptr)
-        , size_(static_cast<size_type>((nullptr == ptr ? 0 : detail::constexpr_strlen(ptr))))
+        , size_(static_cast<size_type>((nullptr == ptr ? 0 : traits_type::length(ptr))))
     { }
     StringView(const std::string& string)
         : data_(string.c_str())
@@ -66,6 +54,13 @@ public:
     constexpr size_type size() const noexcept { return size_; }
     constexpr size_type length() const noexcept { return size(); }
     constexpr bool empty() const noexcept { return 0 == size(); }
+
+    // modifiers
+    /// @note does not perform bounds-checking, ensure  n <= size
+    void remove_prefix(size_type n) noexcept { data_ += n; size_ -= n; }
+    /// @note does not perform bounds-checking, ensure  n <= size
+    void remove_suffix(size_type n) noexcept { size_ -= n; }
+    void swap(StringView& s) noexcept { std::swap(data_, s.data_); std::swap(size_, s.size_); }
 
     // element access
     constexpr const_reference operator[](size_type index) const noexcept { return *(data_ + index); }
@@ -114,6 +109,18 @@ public:
     // constexpr int compare(const char* s) const;
     // constexpr int compare(size_type pos1, size_type n1, const char* s) const;
     // constexpr int compare(size_type pos1, size_type n1, const char* s, size_type n2) const;
+    /// @return false  if  x.size() > size
+    constexpr bool starts_with(StringView x) const noexcept { return size() >= x.size() && traits_type::compare(data(), x.data(), x.size()) == 0; }
+    /// @return false  if  empty
+    constexpr bool starts_with(char x) const noexcept { return !empty() && x == (*this)[0]; }
+    /// @return false  if  nullptr or x.size() > size
+    constexpr bool starts_with(const char* x) const noexcept { return nullptr != x && size() >= traits_type::length(x) && traits_type::compare(data(), x, size()) == 0; }
+    /// @return false  if  x.size() > size
+    constexpr bool ends_with(StringView x) const noexcept { return size() >= x.size() && traits_type::compare(data() + size() - x.size(), x.data(), x.size()) == 0; }
+    /// @return false  if  empty
+    constexpr bool ends_with(char x) const noexcept { return !empty() && x == (*this)[size() - 1]; }
+    /// @return false  if  nullptr or x.size() > size
+    constexpr bool ends_with(const char* x) const noexcept { return nullptr != x && size() >= traits_type::length(x); }
 
 
     // iterator support
