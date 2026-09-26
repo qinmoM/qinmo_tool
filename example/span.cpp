@@ -17,14 +17,24 @@ int main()
 
     qinmo::println();
 
-    span[0] = 0;
     // range-for
+    span[0] = 0;
     for (auto i : s2)
         qinmo::print(i, " ");
 
-    qinmo::println();
     // view
+    qinmo::println();
     qinmo::println(span.subspan(1, 1).at(0));
+    
+    // throw
+    try
+    {
+        span.at(1000);
+    }
+    catch(const std::exception& e)
+    {
+        std::cerr << e.what() << '\n';
+    }
 
     /*
         output:
@@ -37,6 +47,7 @@ int main()
         1 2 3 
         0 2 3 
         2
+        Span::at: index(1000) out of range(0 ~ 2)
 
     */
 

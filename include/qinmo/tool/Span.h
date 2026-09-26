@@ -4,10 +4,11 @@
 
 #pragma once
 
-#include <cstddef>      // size_t
-#include <stdexcept>    // out_of_range
-#include <type_traits>  // remove_cv
-#include <iterator>     // reverse_iterator
+#include "StringConcat.h"   // concat
+#include <cstddef>          // size_t
+#include <stdexcept>        // out_of_range
+#include <type_traits>      // remove_cv
+#include <iterator>         // reverse_iterator
 
 
 
@@ -79,12 +80,11 @@ public:
     constexpr reference operator[](size_type index) const noexcept { return data()[index]; }
     /**
      *  @note performs bounds-checking
-     *  @note maybe have no  constexpr  in C++11
      */
-    constexpr reference at(size_type index) const
+    reference at(size_type index) const
     {
         if (index >= size())
-            throw std::out_of_range("Span: index out of range.");
+            throw std::out_of_range(concat("Span::at: index(", index, ") out of range(0 ~ ", size() - 1, ')'));
 
         return (*this)[index];
     }
