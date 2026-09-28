@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <vector>
 
 
 
@@ -171,6 +172,95 @@ std::size_t find_KMP(const char* haystack, std::size_t haystackSize, const char*
             j = next[j];
     }
     return (j == needleSize) ? i - j : kFindNpos;
+}
+
+/// @brief match strings, default is BF and BMH
+/// @param haystack main string
+/// @param needle pattern string
+/// @return first matching index, qinmo::kFindNpos if not found
+std::size_t find_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+{
+    if (haystackSize < needleSize)
+        return kFindNpos;
+
+    if (2 >= needleSize)
+        return find_BF(haystack, haystackSize, needle, needleSize);
+    else
+        return find_BMH(haystack, haystackSize, needle, needleSize);
+}
+
+/// @brief same as find_BF except for the reversed
+/// @return haystackSize when empty needle
+std::size_t rfind_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+{
+    if (nullptr == haystack || nullptr == needle)
+        return kFindNpos;
+
+    if (0 == needleSize)
+        return haystackSize;
+
+    for (std::size_t i = haystackSize - needleSize; i != kFindNpos; --i)
+    {
+        std::size_t j = 0;
+        for (; j < needleSize; ++j)
+        {
+            if (haystack[i + j] != needle[j])
+                break;
+        }
+
+        if (j == needleSize)
+            return i;
+    }
+    return kFindNpos;
+}
+
+/// @brief same as find_BMH except for the reversed
+/// @return haystackSize when empty needle
+std::size_t rfind_BMH(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+{
+    if (nullptr == haystack || nullptr == needle || haystackSize < needleSize)
+        return kFindNpos;
+
+    if (0 == needleSize)
+        return haystackSize;
+
+    std::size_t shift[256];
+    for (int i = 255; i != kFindNpos; --i)
+        shift[i] = needleSize;
+
+    for (int i = needleSize - 1; i > 0; --i)
+        shift[static_cast<unsigned char>(needle[i])] = i;
+
+    std::size_t i = haystackSize - needleSize;
+    while (i != kFindNpos)
+    {
+        std::size_t j = 0, k = i;
+
+        while (haystack[k] == needle[j])
+        {
+            if (needleSize - 1 == j)
+                return i;
+
+            k += 1, j += 1;
+        }
+
+        i = (i >= shift[static_cast<unsigned char>(haystack[i])]) ? i - shift[static_cast<unsigned char>(haystack[i])] : kFindNpos;
+    }
+
+    return kFindNpos;
+}
+
+/// @brief same as find_default except for the reversed
+/// @return haystackSize when empty needle
+std::size_t rfind_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+{
+    if (haystackSize < needleSize)
+        return kFindNpos;
+
+    if (2 >= needleSize)
+        return rfind_BF(haystack, haystackSize, needle, needleSize);
+    else
+        return rfind_BMH(haystack, haystackSize, needle, needleSize);
 }
 
 } // namespace qinmo
