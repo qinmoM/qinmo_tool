@@ -263,4 +263,143 @@ std::size_t rfind_default(const char* haystack, std::size_t haystackSize, const 
         return rfind_BMH(haystack, haystackSize, needle, needleSize);
 }
 
+
+/// @brief find first character in haystack present needle, use Brute-Force algorithm
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_first_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
+        return kFindNpos;
+
+    if (exists)
+    {
+        for (std::size_t i = 0; i < haystackSize; ++i)
+        {
+            for (std::size_t j = 0; j < needleSize; ++j)
+            {
+                if (haystack[i] == needle[j])
+                    return i;
+            }
+        }
+    }
+    else
+    {
+        for (std::size_t i = 0; i < haystackSize; ++i)
+        {
+            std::size_t j = 0;
+            for (; j < needleSize; ++j)
+            {
+                if (haystack[i] == needle[j])
+                    break;
+            }
+
+            if (j == needleSize)
+                return i;
+        }
+    }
+
+    return kFindNpos;
+}
+
+/// @brief find first character in haystack present needle, use Hash Table
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_first_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
+        return kFindNpos;
+
+    bool hash[256]{ };
+
+    for (std::size_t i = 0; i < needleSize; ++i)
+        hash[static_cast<unsigned char>(needle[i])] = true;
+
+    if (exists)
+    {
+        for (std::size_t i = 0; i < haystackSize; ++i)
+        {
+            if (hash[static_cast<unsigned char>(haystack[i])])
+                return i;
+        }
+    }
+    else
+    {
+        for (std::size_t i = 0; i < haystackSize; ++i)
+        {
+            if (!hash[static_cast<unsigned char>(haystack[i])])
+                return i;
+        }
+    }
+
+    return kFindNpos;
+}
+
+/// @brief find last character in haystack present needle, use Brute-Force algorithm
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_last_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
+        return kFindNpos;
+
+    if (exists)
+    {
+        for (std::size_t i = haystackSize - 1; i != kFindNpos; --i)
+        {
+            for (std::size_t j = 0; j < needleSize; ++j)
+            {
+                if (haystack[i] == needle[j])
+                    return i;
+            }
+        }
+    }
+    else
+    {
+        for (std::size_t i = haystackSize - 1; i != kFindNpos; --i)
+        {
+            std::size_t j = 0;
+            for (; j < needleSize; ++j)
+            {
+                if (haystack[i] == needle[j])
+                    break;
+            }
+
+            if (j == needleSize)
+                return i;
+        }
+    }
+
+    return kFindNpos;
+}
+
+/// @brief find last character in haystack present needle, use Hash Table
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_last_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
+        return kFindNpos;
+
+    bool hash[256]{ };
+
+    for (std::size_t i = 0; i < needleSize; ++i)
+        hash[static_cast<unsigned char>(needle[i])] = true;
+
+    if (exists)
+    {
+        for (std::size_t i = haystackSize - 1; i != kFindNpos; --i)
+        {
+            if (hash[static_cast<unsigned char>(haystack[i])])
+                return i;
+        }
+    }
+    else
+    {
+        for (std::size_t i = haystackSize - 1; i != kFindNpos; --i)
+        {
+            if (!hash[static_cast<unsigned char>(haystack[i])])
+                return i;
+        }
+    }
+
+    return kFindNpos;
+}
+
 } // namespace qinmo
