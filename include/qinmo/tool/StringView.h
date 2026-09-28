@@ -130,7 +130,7 @@ public:
         if (pos > size())
             return npos;
 
-        return find_default(data(), size(), s.data(), s.size());
+        return find_default(data() + pos, size() - pos, s.data(), s.size());
     }
     /// @return npos  when  pos >= size()
     size_type find(char c, size_type pos = 0) const noexcept
@@ -144,19 +144,23 @@ public:
         return npos;
     }
     /// @return npos  when  pos >= size()
-    size_type find(const char* s, size_type pos, size_type n) const noexcept
-    {
-        return find(StringView(s, n), pos);
-    }
+    size_type find(const char* s, size_type pos, size_type n) const noexcept { return find(StringView(s, n), pos); }
     /// @return npos  when  pos >= size()
-    size_type find(const char* s, size_type pos = 0) const
+    size_type find(const char* s, size_type pos = 0) const{ return find(StringView(s), pos);}
+    size_type rfind(StringView s, size_type pos = npos) const noexcept { return rfind_default(data(), (npos == pos ? size() : std::min(size(), pos + s.size())), s.data(), s.size()); }
+    size_type rfind(char c, size_type pos = npos) const noexcept
     {
-        return find(StringView(s), pos);
+        // return rfind_default();
+        for (size_type i = std::min(pos, size() - 1); i != npos; --i)
+        {
+            if (c == (*this)[i])
+                return i;
+        }
+
+        return npos;
     }
-    size_type rfind(StringView s, size_type pos = npos) const noexcept;
-    size_type rfind(char c, size_type pos = npos) const noexcept;
-    size_type rfind(const char* s, size_type pos, size_type n) const noexcept;
-    size_type rfind(const char* s, size_type pos = npos) const;
+    size_type rfind(const char* s, size_type pos, size_type n) const noexcept { return rfind(StringView(s, n), pos); }
+    size_type rfind(const char* s, size_type pos = npos) const { return rfind(StringView(s), pos); }
 
 
     // iterator support
