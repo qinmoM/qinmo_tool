@@ -35,10 +35,10 @@ public:
 
 public:
     // constructors, copy, move, and assignment
-    constexpr StringView() : data_(nullptr), size_(0) { }
+    constexpr StringView() noexcept : data_(nullptr), size_(0) { }
     /// @note Ensure len <= string length
-    constexpr StringView(const char* ptr, size_type len) : data_(ptr), size_(len) { }
-    constexpr StringView(const char* first, const char* last) : data_(first), size_(static_cast<size_type>(last - first)) { }
+    constexpr StringView(const char* ptr, size_type len) noexcept : data_(ptr), size_(len) { }
+    constexpr StringView(const char* first, const char* last) noexcept : data_(first), size_(static_cast<size_type>(last - first)) { }
     /// @note evaluated at compile time for literals, but may not be in other situations
     constexpr StringView(const char* ptr)
         : data_(ptr)
@@ -121,6 +121,42 @@ public:
     constexpr bool ends_with(char x) const noexcept { return !empty() && x == (*this)[size() - 1]; }
     /// @return false  if  nullptr or x.size() > size
     constexpr bool ends_with(const char* x) const noexcept { return nullptr != x && size() >= traits_type::length(x); }
+
+
+    // search
+    /// @return npos  when  pos >= size()
+    size_type find(StringView s, size_type pos = 0) const noexcept
+    {
+        if (pos > size())
+            return npos;
+
+        return find_default(data(), size(), s.data(), s.size());
+    }
+    /// @return npos  when  pos >= size()
+    size_type find(char c, size_type pos = 0) const noexcept
+    {
+        for (size_type i = pos; i < size(); ++i)
+        {
+            if (c == (*this)[i])
+                return i;
+        }
+
+        return npos;
+    }
+    /// @return npos  when  pos >= size()
+    size_type find(const char* s, size_type pos, size_type n) const noexcept
+    {
+        return find(StringView(s, n), pos);
+    }
+    /// @return npos  when  pos >= size()
+    size_type find(const char* s, size_type pos = 0) const
+    {
+        return find(StringView(s), pos);
+    }
+    size_type rfind(StringView s, size_type pos = npos) const noexcept;
+    size_type rfind(char c, size_type pos = npos) const noexcept;
+    size_type rfind(const char* s, size_type pos, size_type n) const noexcept;
+    size_type rfind(const char* s, size_type pos = npos) const;
 
 
     // iterator support
