@@ -333,6 +333,16 @@ std::size_t find_first_of_Hash(const char* haystack, std::size_t haystackSize, c
     return kFindNpos;
 }
 
+/// @brief find first character in haystack present needle
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_first_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (8 <= needleSize && 130 >= needleSize)
+        return find_first_of_Hash(haystack, haystackSize, needle, needleSize, exists);
+    else
+        return find_first_of_BF(haystack, haystackSize, needle, needleSize, exists);
+}
+
 /// @brief find last character in haystack present needle, use Brute-Force algorithm
 /// @param exists true represents exists, false represents non-exists
 std::size_t find_last_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
@@ -400,6 +410,16 @@ std::size_t find_last_of_Hash(const char* haystack, std::size_t haystackSize, co
     }
 
     return kFindNpos;
+}
+
+/// @brief find last character in haystack present needle
+/// @param exists true represents exists, false represents non-exists
+std::size_t find_last_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+{
+    if (8 <= needleSize && 130 >= needleSize)
+        return find_last_of_Hash(haystack, haystackSize, needle, needleSize, exists);
+    else
+        return find_last_of_BF(haystack, haystackSize, needle, needleSize, exists);
 }
 
 } // namespace qinmo

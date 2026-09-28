@@ -124,7 +124,7 @@ public:
 
 
     // search
-    /// @return npos  when  pos >= size()
+    /// @return npos  when  pos > size()
     size_type find(StringView s, size_type pos = 0) const noexcept
     {
         if (pos > size())
@@ -132,9 +132,12 @@ public:
 
         return find_default(data() + pos, size() - pos, s.data(), s.size());
     }
-    /// @return npos  when  pos >= size()
+    /// @return npos  when  pos > size()  or  empty
     size_type find(char c, size_type pos = 0) const noexcept
     {
+        if (empty())
+            return npos;
+
         for (size_type i = pos; i < size(); ++i)
         {
             if (c == (*this)[i])
@@ -143,14 +146,17 @@ public:
 
         return npos;
     }
-    /// @return npos  when  pos >= size()
+    /// @return npos  when  pos > size()
     size_type find(const char* s, size_type pos, size_type n) const noexcept { return find(StringView(s, n), pos); }
-    /// @return npos  when  pos >= size()
-    size_type find(const char* s, size_type pos = 0) const{ return find(StringView(s), pos);}
+    /// @return npos  when  pos > size()
+    size_type find(const char* s, size_type pos = 0) const{ return find(StringView(s), pos); }
+
     size_type rfind(StringView s, size_type pos = npos) const noexcept { return rfind_default(data(), (npos == pos ? size() : std::min(size(), pos + s.size())), s.data(), s.size()); }
     size_type rfind(char c, size_type pos = npos) const noexcept
     {
-        // return rfind_default();
+        if (empty())
+            return npos;
+
         for (size_type i = std::min(pos, size() - 1); i != npos; --i)
         {
             if (c == (*this)[i])
@@ -161,6 +167,38 @@ public:
     }
     size_type rfind(const char* s, size_type pos, size_type n) const noexcept { return rfind(StringView(s, n), pos); }
     size_type rfind(const char* s, size_type pos = npos) const { return rfind(StringView(s), pos); }
+
+    size_type find_first_of(StringView s, size_type pos = 0) const noexcept
+    {
+        if (pos > size())
+            return npos;
+
+        return find_first_of_default(data() + pos, size() - pos, s.data(), s.size());
+    }
+    size_type find_first_of(char c, size_type pos = 0) const noexcept { return find(c, pos); }
+    size_type find_first_of(const char* s, size_type pos, size_type n) const noexcept { return find_first_of(StringView(s, n), pos); }
+    size_type find_first_of(const char* s, size_type pos = 0) const { return find_first_of(StringView(s), pos); }
+
+    size_type find_last_of(StringView s, size_type pos = npos) const noexcept { return find_last_of_default(data(), (npos == pos ? size() : std::min(size(), pos + 1)), s.data(), s.size()); }
+    size_type find_last_of(char c, size_type pos = npos) const noexcept { rfind(c, pos); }
+    size_type find_last_of(const char* s, size_type pos, size_type n) const noexcept { return find_last_of(StringView(s, n), pos); }
+    size_type find_last_of(const char* s, size_type pos = npos) const { return find_last_of(StringView(s), pos); }
+    
+    size_type find_first_not_of(StringView s, size_type pos = 0) const noexcept
+    {
+        if (pos > size())
+            return npos;
+
+        return find_first_of_default(data() + pos, size() - pos, s.data(), s.size(), false);
+    }
+    size_type find_first_not_of(char c, size_type pos = 0) const noexcept { return find_first_not_of(&c, pos, 1); }
+    size_type find_first_not_of(const char* s, size_type pos, size_type n) const noexcept { return find_first_not_of(StringView(s, n), pos); }
+    size_type find_first_not_of(const char* s, size_type pos = 0) const { return find_first_not_of(StringView(s), pos); }
+    
+    size_type find_last_not_of(StringView s, size_type pos = npos) const noexcept { return find_last_of_default(data(), (npos == pos ? size() : std::min(size(), pos + 1)), s.data(), s.size(), false); }
+    size_type find_last_not_of(char c, size_type pos = npos) const noexcept { return find_last_not_of(&c, pos, 1); }
+    size_type find_last_not_of(const char* s, size_type pos, size_type n) const noexcept { return find_last_not_of(StringView(s, n), pos); }
+    size_type find_last_not_of(const char* s, size_type pos = npos) const { return find_last_not_of(StringView(s), pos); }
 
 
     // iterator support
@@ -188,7 +226,7 @@ private:
 
 };
 
-inline bool operator==(const StringView& a, const StringView& b) { return 0 == strncmp(a.data(), b.data(), a.size()); }
+inline bool operator==(const StringView& a, const StringView& b) { return 0 == constexpr_compare(a.data(), b.data(), a.size()); }
 inline bool operator!=(const StringView& a, const StringView& b) { return !(a == b); }
 inline std::ostream& operator<<(std::ostream& os, const StringView& view) { os << view.to_string(); return os; }
 
