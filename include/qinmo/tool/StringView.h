@@ -34,7 +34,9 @@ public:
     static constexpr size_type npos = size_type(-1);
 
 public:
-    // constructors, copy, move, and assignment
+/*
+                constructors, copy, move, and assignment
+*/
     constexpr StringView() noexcept : data_(nullptr), size_(0) { }
     /// @note Ensure len <= string length
     constexpr StringView(const char* ptr, size_type len) noexcept : data_(ptr), size_(len) { }
@@ -50,19 +52,27 @@ public:
     { }
 
 public:
-    // capacity
+/*
+                capacity
+*/
     constexpr size_type size() const noexcept { return size_; }
     constexpr size_type length() const noexcept { return size(); }
     constexpr bool empty() const noexcept { return 0 == size(); }
 
-    // modifiers
+
+/*
+                modifiers
+*/
     /// @note does not perform bounds-checking, ensure  n <= size
     void remove_prefix(size_type n) noexcept { data_ += n; size_ -= n; }
     /// @note does not perform bounds-checking, ensure  n <= size
     void remove_suffix(size_type n) noexcept { size_ -= n; }
     void swap(StringView& s) noexcept { std::swap(data_, s.data_); std::swap(size_, s.size_); }
 
-    // element access
+
+/*
+                element access
+*/
     constexpr const_reference operator[](size_type index) const noexcept { return *(data_ + index); }
     const_reference at(size_type index) const
     {
@@ -76,7 +86,9 @@ public:
     constexpr const char* data() const noexcept { return data_; }
 
 
-    // string operations
+/*
+                string operations
+*/
     /// @throw std::out_of_range  when  pos > size
     size_type copy(char* s, size_type n, size_type pos = 0) const
     {
@@ -103,12 +115,29 @@ public:
 
         return StringView(data() + pos, data() + std::min(pos + n, size()));
     }
-    // constexpr int compare(StringView s) const noexcept { return traits_type::compare(data(), s.data(), std::min(size(), s.size())); }
-    // constexpr int compare(size_type pos1, size_type n1, StringView s) const;
-    // constexpr int compare(size_type pos1, size_type n1, StringView s, size_type pos2, size_type n2) const;  
-    // constexpr int compare(const char* s) const;
-    // constexpr int compare(size_type pos1, size_type n1, const char* s) const;
-    // constexpr int compare(size_type pos1, size_type n1, const char* s, size_type n2) const;
+    /// @return <0 if  this < s , ==0 if equal, >0 if larger
+    int compare(StringView s) const noexcept
+    {
+        const int result = traits_type::compare(data(), s.data(), std::min(size(), s.size()));
+        if (0 != result)
+            return result;
+
+        if (size() == s.size())
+            return 0;
+
+        return size() > s.size() ? 1 : -1;
+    }
+    /// @return <0 if  this < s , ==0 if equal, >0 if larger
+    int compare(size_type pos1, size_type n1, StringView s) const { return substr(pos1, n1).compare(s); }
+    /// @return <0 if  this < s , ==0 if equal, >0 if larger
+    int compare(size_type pos1, size_type n1, StringView s, size_type pos2, size_type n2) const { return substr(pos1, n1).compare(s.substr(pos2, n2)); }
+    /// @return <0 if  this < s , ==0 if equal, >0 if larger
+    int compare(const char* s) const { return compare(StringView(s)); }
+    /// @return <0 if  this < s , ==0 if equal, >0 if larger
+    int compare(size_type pos1, size_type n1, const char* s) const { return compare(pos1, n1, StringView(s)); }
+    /// @return <0 if a this < s , ==0 if equal, >0 if larger
+    int compare(size_type pos1, size_type n1, const char* s, size_type n2) const { return compare(pos1, n1, StringView(s), 0, n2); }
+
     /// @return false  if  x.size() > size
     constexpr bool starts_with(StringView x) const noexcept { return size() >= x.size() && traits_type::compare(data(), x.data(), x.size()) == 0; }
     /// @return false  if  empty
@@ -123,10 +152,12 @@ public:
     constexpr bool ends_with(const char* x) const noexcept { return ends_with(StringView(x)); }
 
 
-    // search
+/*
+                search
+*/
     /// @return npos  when  pos > size()
     size_type find(StringView s, size_type pos = 0) const noexcept { return find(s.data(), pos, s.size()); }
-    /// @return npos  when  pos > size()  or  empty
+    /// @return npos  when  pos >= size()
     size_type find(char c, size_type pos = 0) const noexcept { return find(&c, pos, 1); }
     /// @return npos  when  pos > size()
     size_type find(const char* s, size_type pos, size_type n) const noexcept
@@ -185,7 +216,9 @@ public:
     size_type find_last_not_of(const char* s, size_type pos = npos) const { return find_last_not_of(StringView(s), pos); }
 
 
-    // iterator support
+/*
+                iterator support
+*/
     constexpr const_iterator begin() const noexcept { return data_; }
     constexpr const_iterator end() const noexcept { return data_ + size(); }
     constexpr const_iterator cbegin() const noexcept { return begin(); }
@@ -210,7 +243,7 @@ private:
 
 };
 
-inline bool operator==(const StringView& a, const StringView& b) { return 0 == constexpr_compare(a.data(), b.data(), a.size()); }
+inline bool operator==(const StringView& a, const StringView& b) { return 0 == StringView::traits_type::compare(a.data(), b.data(), a.size()); }
 inline bool operator!=(const StringView& a, const StringView& b) { return !(a == b); }
 inline std::ostream& operator<<(std::ostream& os, const StringView& view) { os << view.to_string(); return os; }
 
