@@ -1,4 +1,5 @@
 #include <qinmo/tool.h> 
+#include <algorithm>
 // equal to :
 // #include <qinmo/tool/StringView.h> 
 // #include <qinmo/tool/StringConcat.h>
@@ -35,12 +36,22 @@ int main()
 
     qinmo::println(sv.find_first_of("hpd"));
 
+    // generic algorithm
+    qinmo::println("generic algorithm count(l)=", std::count(sv.begin(), sv.end(), 'l'));
+    qinmo::println("generic algorithm reverse-find(l)=", *(std::find(sv.rbegin(), sv.rend(), 'l')));
+
     // operations
-    qinmo::println(sv.substr(1, 3));
-    if (sv.starts_with("h"))
-        qinmo::println("yes");
+    qinmo::println("substr 1~3: ", sv.substr(1, 3));
+
+    if (sv.starts_with("he"))
+        qinmo::println("found: he");
     else
-        qinmo::println("no");
+        qinmo::println("non-found: he");
+
+    if (sv.ends_with("lo."))
+        qinmo::println("ends_with: lo.");
+    else
+        qinmo::println("non-ends_with: lo.");
 
     // modifiers
     sv.remove_suffix(8);
@@ -68,8 +79,11 @@ int main()
         12
         non-found
         0
-        ell
-        yes
+        generic algorithm count(l)=4
+        generic algorithm reverse-find(l)=l
+        substr 1~3: ell
+        found: he
+        ends_with: lo.
         modifier: hello
         StringView::at: index(100) out of range(0 ~ 4)
     */
