@@ -54,18 +54,22 @@ public:
     constexpr Optional(nullopt_t) noexcept { }
     Optional(const Optional& other)
     {
+        reset();
+
         if (other.has_value())
         {
-            new (value_) T(other.value());
+            new (value_) T(*other);
             valid_ = true;
         }
     }
     /// @note remains valid after move, reset() must be called manually after move
     Optional(Optional&& other) noexcept(std::is_nothrow_constructible<T>::value)
     {
+        reset();
+
         if (other.has_value())
         {
-            new (value_) T(std::move(other.value()));
+            new (value_) T(std::move(*other));
             valid_ = true;
         }
     }
@@ -82,39 +86,77 @@ public:
     constexpr Optional& operator=(nullopt_t) noexcept { reset(); }
     Optional& operator=(const Optional& other)
     {
+        reset();
+
         if (other.has_value())
         {
-            new (value_) T(other.value());
+            new (value_) T(*other);
             valid_ = true;
         }
+
         return *this;
     }
-    Optional& operator=(Optional&& other) noexcept(std::is_nothrow_constructible<T>::value)
+    Optional& operator=(Optional&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
     {
+        reset();
+
         if (other.has_value())
         {
-            new (value_) T(std::move(other.value()));
+            new (value_) T(std::move(*other));
             valid_ = true;
         }
+
         return *this;
     }
+    template<class U = std::remove_cv<T>>
+        Optional& operator=(U&& value)
+        {
+            emplace(std::forward<U>(value));
+            return *this;
+        }
     template<class... Args>
-    T& emplace(Args&&... args)
-    {
-        reset();
+        T& emplace(Args&&... args)
+        {
+            reset();
 
-        new (value_) T(std::forward<Args>(args)...);
-        valid_ = true;
-        return *ptr();
-    }
+            new (value_) T(std::forward<Args>(args)...);
+            valid_ = true;
+            return *ptr();
+        }
     template<class U, class... Args>
-    T& emplace(std::initializer_list<U> list, Args&&... args)
-    {
-        reset();
+        T& emplace(std::initializer_list<U> list, Args&&... args)
+        {
+            reset();
 
-        new (value_) T(list, std::forward<Args>(args)...);
-        valid_ = true;
-        return *ptr();
+            new (value_) T(list, std::forward<Args>(args)...);
+            valid_ = true;
+            return *ptr();
+        }
+
+
+/*
+                swap
+*/
+    void swap(Optional& other) /* noexcept() */
+    {
+        if (this == &other)
+            return;
+
+        if (has_value() && other.has_value())
+        {
+            using swap = std::swap;
+            swap(**this, *other);
+        }
+        else if (has_value())
+        {
+            other = std::move(*this);
+            reset();
+        }
+        else if (other.has_value())
+        {
+            *this = std::move(other);
+            other.reset();
+        }
     }
 
 
