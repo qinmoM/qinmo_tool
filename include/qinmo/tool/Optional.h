@@ -28,6 +28,8 @@ class Optional
 {
 public:
     using value_type = T;
+    using iterator = T*;
+    using const_iterator = const T*;
 
 public:
 /*
@@ -99,6 +101,15 @@ public:
         valid_ = true;
         return *ptr();
     }
+
+
+/*
+                iterator support
+*/
+    iterator begin() noexcept { return ptr(); }
+    constexpr const_iterator begin() const noexcept { return begin(); }
+    iterator end() noexcept { return has_value() ? ptr() + 1 : ptr(); }
+    constexpr const_iterator end() const noexcept { return end(); }
 
 
 /*
