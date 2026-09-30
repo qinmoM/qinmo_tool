@@ -6,6 +6,7 @@
 
 #include <initializer_list>
 #include <utility>
+#include <stdexcept>
 
 
 
@@ -22,11 +23,25 @@ struct nullopt_t
 extern const nullopt_t nullopt;
 
 
+/// @brief custom Optional access exception
+class bad_optional_access : public std::exception
+{
+public:
+    ~bad_optional_access() noexcept override = default;
+
+    const char* what() const noexcept override
+    {
+        return "bad optional access";
+    }
+};
+
+
 
 template<typename T>
 class Optional
 {
 public:
+    // types
     using value_type = T;
     using iterator = T*;
     using const_iterator = const T*;
@@ -115,11 +130,42 @@ public:
 /*
                 observers
 */
+    T* operator->() noexcept { return ptr(); }
+    constexpr const T* operator->() const noexcept { return ptr(); }
+    T& operator*() & noexcept { return *ptr(); }
+    constexpr const T& operator*() const& noexcept { return *ptr(); }
+    T&& operator*() && noexcept { return *ptr(); }
+    constexpr const T&& operator*() const&& noexcept { return *ptr(); }
+    constexpr explicit operator bool() const noexcept { return has_value(); }
     constexpr bool has_value() const noexcept { return valid_; }
-    T& value() & { return *ptr(); }
-    constexpr const T& value() const & { return *ptr(); }
-    T&& value() && { return *ptr(); }
-    constexpr const T&& value() const && { return *ptr(); }
+    T& value() &
+    {
+        if (!has_value())
+            throw qinmo::bad_optional_access();
+
+        return *ptr();
+    }
+    const T& value() const &
+    {
+        if (!has_value())
+            throw qinmo::bad_optional_access();
+
+        return *ptr();
+    }
+    T&& value() &&
+    {
+        if (!has_value())
+            throw qinmo::bad_optional_access();
+
+        return std::move(*ptr());
+    }
+    const T&& value() const &&
+    {
+        if (!has_value())
+            throw qinmo::bad_optional_access();
+
+        return std::move(*ptr());
+    }
 
 
 /*
