@@ -35,6 +35,23 @@ public:
 */
     constexpr Optional() noexcept { }
     constexpr Optional(nullopt_t) noexcept { }
+    Optional(const Optional& other)
+    {
+        if (other.has_value())
+        {
+            new (value_) T(other.value());
+            valid_ = true;
+        }
+    }
+    /// @note remains valid after move, reset() must be called manually after move
+    Optional(Optional&& other) noexcept(std::is_nothrow_constructible<T>::value)
+    {
+        if (other.has_value())
+        {
+            new (value_) T(std::move(other.value()));
+            valid_ = true;
+        }
+    }
 
 /*
                 destructor
@@ -45,6 +62,25 @@ public:
 /*
                 assignment
 */
+    constexpr Optional& operator=(nullopt_t) noexcept { reset(); }
+    Optional& operator=(const Optional& other)
+    {
+        if (other.has_value())
+        {
+            new (value_) T(other.value());
+            valid_ = true;
+        }
+        return *this;
+    }
+    Optional& operator=(Optional&& other) noexcept(std::is_nothrow_constructible<T>::value)
+    {
+        if (other.has_value())
+        {
+            new (value_) T(std::move(other.value()));
+            valid_ = true;
+        }
+        return *this;
+    }
     template<class... Args>
     T& emplace(Args&&... args)
     {
@@ -80,7 +116,7 @@ public:
 */
     void reset() noexcept
     {
-        if (valid_)
+        if (has_value())
         {
             ptr()->~T();
             valid_ = false;
