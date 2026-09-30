@@ -108,10 +108,47 @@ public:
 
         return *this;
     }
-    template<class U = std::remove_cv<T>>
+    template<class U = typename std::remove_cv<T>::type>
         Optional& operator=(U&& value)
         {
-            emplace(std::forward<U>(value));
+            if (has_value())
+                **this = std::forward<U>(value);
+            else
+                emplace(std::forward<U>(value));
+            return *this;
+        }
+    template<class U>
+        typename std::enable_if<
+            !std::is_same<T, U>::value &&
+            std::is_constructible<T, const U&>::value &&
+            std::is_assignable<T&, const U&>::value,
+            Optional&
+        >::type operator=(const Optional<U>& other)
+        {
+            if (has_value() && other.has_value())
+                **this = *other;
+            else if (has_value())
+                reset();
+            else if (other.has_value())
+                emplace(*other);
+
+            return *this;
+        }
+    template<class U>
+        typename std::enable_if<
+            !std::is_same<T, U>::value &&
+            std::is_constructible<T, U&&>::value &&
+            std::is_assignable<T&, U&&>::value,
+            Optional&
+        >::type operator=(Optional<U>&& other)
+        {
+            if (has_value() && other.has_value())
+                **this = std::move(*other);
+            else if (has_value())
+                reset();
+            else if (other.has_value())
+                emplace(std::move(*other));
+
             return *this;
         }
     template<class... Args>
@@ -144,7 +181,7 @@ public:
 
         if (has_value() && other.has_value())
         {
-            using swap = std::swap;
+            using std::swap;
             swap(**this, *other);
         }
         else if (has_value())
