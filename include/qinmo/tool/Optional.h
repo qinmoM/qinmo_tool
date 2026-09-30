@@ -13,6 +13,7 @@
 namespace qinmo
 {
 
+/// @brief tag type used to represent an empty value
 struct nullopt_t
 {
     enum class Construct { Token };
@@ -21,6 +22,15 @@ struct nullopt_t
 };
 
 extern const nullopt_t nullopt;
+
+
+/// @brief tag type for in-place construction
+struct in_place_t
+{
+    explicit constexpr in_place_t() = default;
+};
+
+extern const in_place_t in_place;
 
 
 /// @brief custom Optional access exception
@@ -73,12 +83,23 @@ public:
             valid_ = true;
         }
     }
+    template<class... Args>
+        explicit Optional(in_place_t, Args&&... args)
+        {
+            new (value_) T(std::forward<Args>(args)...);
+            valid_ = true;
+        }
+    template<class U, class... Args>
+        explicit Optional(in_place_t, std::initializer_list<U> list, Args&&... args)
+        {
+            new (value_) T(list, std::forward<Args>(args)...);
+            valid_ = true;
+        }
 
 /*
                 destructor
 */
     ~Optional() { reset(); }
-
 
 /*
                 assignment
@@ -170,7 +191,6 @@ public:
             return *ptr();
         }
 
-
 /*
                 swap
 */
@@ -196,7 +216,6 @@ public:
         }
     }
 
-
 /*
                 iterator support
 */
@@ -204,7 +223,6 @@ public:
     constexpr const_iterator begin() const noexcept { return begin(); }
     iterator end() noexcept { return has_value() ? ptr() + 1 : ptr(); }
     constexpr const_iterator end() const noexcept { return end(); }
-
 
 /*
                 observers
@@ -245,7 +263,6 @@ public:
 
         return std::move(*ptr());
     }
-
 
 /*
                 modifiers
