@@ -51,7 +51,16 @@ template<typename T>
 class Optional
 {
 public:
-    // types
+/*
+                limit type
+*/
+    static_assert(!std::is_void<T>::value, "Optional cannot be use void");
+    static_assert(!std::is_reference<T>::value, "Optional cannot be use reference type");
+    static_assert(!std::is_function<T>::value, "Optional cannot be use function");
+
+/*
+                types
+*/
     using value_type = T;
     using iterator = T*;
     using const_iterator = const T*;
