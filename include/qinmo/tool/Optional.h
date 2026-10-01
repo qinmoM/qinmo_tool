@@ -224,6 +224,7 @@ public:
     iterator end() noexcept { return has_value() ? ptr() + 1 : ptr(); }
     constexpr const_iterator end() const noexcept { return end(); }
 
+
 /*
                 observers
 */
@@ -263,6 +264,53 @@ public:
 
         return std::move(*ptr());
     }
+
+
+/*
+                monadic operations
+*/
+    template <class F>
+        auto and_then(F&& f) & -> decltype(std::declval<F>()(std::declval<T&>()))
+        {
+            using return_type = decltype(std::declval<F>()(std::declval<T&>()));
+
+            if (has_value())
+                return std::forward<F>(f)(**this);
+
+            return return_type(nullopt);
+        }
+    // template <class F>
+    //     auto and_then(F&& f) &&;
+    // template <class F>
+    //     auto and_then(F&& f) const &;
+    // template <class F>
+    //     auto and_then(F&& f) const &&;
+    template <class F>
+        auto transform(F&& f) & -> Optional<decltype(std::declval<F>()(std::declval<T&>))>
+        {
+            using return_type = Optional<decltype(std::declval<F>()(std::declval<T&>))>;
+
+            if (has_value())
+                return Optional<return_type>(std::forward<F>(f)(**this));
+
+            return Optional<return_type>(nullopt);
+        }
+    // template <class F>
+    //     auto transform(F&& f) &&;
+    // template <class F>
+    //     auto transform(F&& f) const &;
+    // template <class F>
+    //     auto transform(F&& f) const &&;
+    template <class F>
+        Optional<T> or_else(F&& f) &&
+        {
+            if (has_value())
+                return *this;
+
+            return std::forward<F>(f)();
+        }
+    // template <class F>
+    //     Optional<T> or_else(F&& f) const &;
 
 /*
                 modifiers
