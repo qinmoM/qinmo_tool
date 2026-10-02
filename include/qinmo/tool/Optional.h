@@ -114,18 +114,35 @@ public:
             valid_ = true;
         }
     }
+
     template<class... Args>
         explicit Optional(in_place_t, Args&&... args)
         {
             new (value_) T(std::forward<Args>(args)...);
             valid_ = true;
         }
+
     template<class U, class... Args>
         explicit Optional(in_place_t, std::initializer_list<U> list, Args&&... args)
         {
             new (value_) T(list, std::forward<Args>(args)...);
             valid_ = true;
         }
+
+    template<class U = typename std::remove_cv<T>::type, typename std::enable_if<!std::is_convertible<U&&, T>::value, int>::type = 0>
+        explicit Optional(U&& value) { emplace(std::forward<U>(value)); }
+    template<class U = typename std::remove_cv<T>::type, typename std::enable_if<std::is_convertible<U&&, T>::value, int>::type = 0>
+        Optional(U&& value) { emplace(std::forward<U>(value)); }
+
+    template<class U, typename std::enable_if<!std::is_convertible<const U&, T>::value, int>::type = 0>
+        explicit Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
+    template<class U, typename std::enable_if<std::is_convertible<const U&, T>::value, int>::type = 0>
+        Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
+
+    template<class U, typename std::enable_if<!std::is_convertible<U&&, T>::value, int>::type = 0>
+        explicit Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
+    template<class U, typename std::enable_if<std::is_convertible<U&&, T>::value, int>::type = 0>
+        Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
 
 /*
                 destructor
@@ -138,26 +155,24 @@ public:
     constexpr Optional& operator=(nullopt_t) noexcept { reset(); }
     Optional& operator=(const Optional& other)
     {
-        reset();
-
-        if (other.has_value())
-        {
-            new (value_) T(*other);
-            valid_ = true;
-        }
+        if (has_value() && other.has_value())
+            **this = *other;
+        else if (has_value())
+            reset();
+        else if (other.has_value())
+            emplace(*other);
 
         return *this;
     }
 
     Optional& operator=(Optional&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
     {
-        reset();
-
-        if (other.has_value())
-        {
-            new (value_) T(std::move(*other));
-            valid_ = true;
-        }
+        if (has_value() && other.has_value())
+            **this = std::move(*other);
+        else if (has_value())
+            reset();
+        else if (other.has_value())
+            emplace(std::move(*other));
 
         return *this;
     }
@@ -301,7 +316,7 @@ public:
 
         return std::move(*ptr());
     }
-    template <class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
+    template<class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
         T value_or(U&& value) const & noexcept(
                 std::is_nothrow_copy_constructible<T>::value &&
                 std::is_nothrow_constructible<T, U&&>::value
@@ -312,7 +327,7 @@ public:
 
             return std::forward<U>(value);
         }
-    template <class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
+    template<class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
         T value_or(U&& value) && noexcept(
                 std::is_nothrow_move_constructible<T>::value &&
                 std::is_nothrow_constructible<T, U&&>::value
