@@ -450,16 +450,39 @@ public:
         return Optional<U>(nullopt);
     }
 
-    template <class F>
-        Optional<T> or_else(F&& f) &&
-        {
-            if (has_value())
-                return *this;
+    template <
+        class F,
+        std::enable_if<
+            std::is_same<
+                decltype( std::declval<F>()() ),
+                Optional<T>
+            >::value, int
+        >::type = 0
+    >
+    Optional<T> or_else(F&& f) &&
+    {
+        if (has_value())
+            return std::move(*this);
 
-            return std::forward<F>(f)();
-        }
-    // template <class F>
-    //     Optional<T> or_else(F&& f) const &;
+        return std::forward<F>(f)();
+    }
+
+    template <
+        class F,
+        std::enable_if<
+            std::is_same<
+                decltype( std::declval<F>()() ),
+                Optional<T>
+            >::value, int
+        >::type = 0
+    >
+    Optional<T> or_else(F&& f) const &
+    {
+        if (has_value())
+            return *this;
+
+        return std::forward<F>(f)();
+    }
 
 /*
                 modifiers
