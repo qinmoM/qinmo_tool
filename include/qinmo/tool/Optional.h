@@ -293,6 +293,28 @@ public:
 
         return std::move(*ptr());
     }
+    template <class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
+        T value_or(U&& value) const & noexcept(
+                std::is_nothrow_copy_constructible<T>::value &&
+                std::is_nothrow_constructible<T, U&&>::value
+            )
+        {
+            if (has_value())
+                return **this;
+
+            return std::forward<U>(value);
+        }
+    template <class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
+        T value_or(U&& value) && noexcept(
+                std::is_nothrow_move_constructible<T>::value &&
+                std::is_nothrow_constructible<T, U&&>::value
+            )
+        {
+            if (has_value())
+                return std::move(**this);
+
+            return std::forward<U>(value);
+        }
 
 
 /*
