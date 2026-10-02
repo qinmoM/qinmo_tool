@@ -55,6 +55,16 @@ struct is_optional : std::false_type { };
 template<typename T>
 struct is_optional<Optional<T>> : std::true_type { };
 
+template<typename U>
+struct is_valid_optional_value
+    : std::integral_constant<
+        bool,
+        !std::is_void<U>::value &&
+        !std::is_reference<U>::value &&
+        !std::is_function<U>::value
+    >
+{ };
+
 
 
 template<typename T>
@@ -321,7 +331,7 @@ public:
         using return_type = decltype( std::declval<F>()(std::declval<T&&>()) );
 
         if (has_value())
-            return std::forward<F>(f)(**this);
+            return std::forward<F>(f)(std::move(**this));
 
         return return_type(nullopt);
     }
@@ -359,28 +369,87 @@ public:
         using return_type = decltype( std::declval<F>()(std::declval<const T&&>()) );
 
         if (has_value())
-            return std::forward<F>(f)(**this);
+            return std::forward<F>(f)(std::move(**this));
 
         return return_type(nullopt);
     }
 
-    template <class F>
-        auto transform(F&& f) &
-            -> Optional<decltype(std::declval<F>()(std::declval<T&>))>
-        {
-            using return_type = Optional<decltype(std::declval<F>()(std::declval<T&>))>;
+    template <
+        class F,
+        typename std::enable_if<
+            is_valid_optional_value<
+                decltype( std::declval<F>()(std::declval<T&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto transform(F&& f) &
+        -> Optional<decltype( std::declval<F>()(std::declval<T&>()) )>
+    {
+        using U = decltype( std::declval<F>()(std::declval<T&>()) );
 
-            if (has_value())
-                return Optional<return_type>(std::forward<F>(f)(**this));
+        if (has_value())
+            return Optional<U>(std::forward<F>(f)(**this));
 
-            return Optional<return_type>(nullopt);
-        }
-    // template <class F>
-    //     auto transform(F&& f) &&;
-    // template <class F>
-    //     auto transform(F&& f) const &;
-    // template <class F>
-    //     auto transform(F&& f) const &&;
+        return Optional<U>(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_valid_optional_value<
+                decltype( std::declval<F>()(std::declval<T&&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto transform(F&& f) &&
+        -> Optional<decltype( std::declval<F>()(std::declval<T&&>()) )>
+    {
+        using U = decltype( std::declval<F>()(std::declval<T&&>()) );
+
+        if (has_value())
+            return Optional<U>(std::forward<F>(f)(std::move(**this)));
+
+        return Optional<U>(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_valid_optional_value<
+                decltype( std::declval<F>()(std::declval<const T&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto transform(F&& f) const &
+        -> Optional<decltype( std::declval<F>()(std::declval<const T&>()) )>
+    {
+        using U = decltype( std::declval<F>()(std::declval<const T&>()) );
+
+        if (has_value())
+            return Optional<U>(std::forward<F>(f)(**this));
+
+        return Optional<U>(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_valid_optional_value<
+                decltype( std::declval<F>()(std::declval<const T&&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto transform(F&& f) const &&
+        -> Optional<decltype( std::declval<F>()(std::declval<const T&&>()) )>
+    {
+        using U = decltype( std::declval<F>()(std::declval<const T&&>()) );
+
+        if (has_value())
+            return Optional<U>(std::forward<F>(f)(std::move(**this)));
+
+        return Optional<U>(nullopt);
+    }
+
     template <class F>
         Optional<T> or_else(F&& f) &&
         {
