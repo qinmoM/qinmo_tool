@@ -46,6 +46,16 @@ public:
 };
 
 
+/// @brief for  enable_if
+template<typename T>
+class Optional;
+
+template<typename T>
+struct is_optional : std::false_type { };
+template<typename T>
+struct is_optional<Optional<T>> : std::true_type { };
+
+
 
 template<typename T>
 class Optional
@@ -278,24 +288,85 @@ public:
 /*
                 monadic operations
 */
-    template <class F>
-        auto and_then(F&& f) & -> decltype(std::declval<F>()(std::declval<T&>()))
-        {
-            using return_type = decltype(std::declval<F>()(std::declval<T&>()));
+    template <
+        class F,
+        typename std::enable_if<
+            is_optional<
+                decltype( std::declval<F>()(std::declval<T&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto and_then(F&& f) &
+        -> decltype( std::declval<F>()(std::declval<T&>()) )
+    {
+        using return_type = decltype( std::declval<F>()(std::declval<T&>()) );
 
-            if (has_value())
-                return std::forward<F>(f)(**this);
+        if (has_value())
+            return std::forward<F>(f)(**this);
 
-            return return_type(nullopt);
-        }
-    // template <class F>
-    //     auto and_then(F&& f) &&;
-    // template <class F>
-    //     auto and_then(F&& f) const &;
-    // template <class F>
-    //     auto and_then(F&& f) const &&;
+        return return_type(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_optional<
+                decltype( std::declval<F>()(std::declval<T&&>()) )
+            >::value, int
+        >::type = 0
+    >
+        auto and_then(F&& f) &&
+        -> decltype( std::declval<F>()(std::declval<T&&>()) )
+    {
+        using return_type = decltype( std::declval<F>()(std::declval<T&&>()) );
+
+        if (has_value())
+            return std::forward<F>(f)(**this);
+
+        return return_type(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_optional<
+                decltype( std::declval<F>()(std::declval<const T&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto and_then(F&& f) const &
+        -> decltype( std::declval<F>()(std::declval<const T&>()) )
+    {
+        using return_type = decltype( std::declval<F>()(std::declval<const T&>()) );
+
+        if (has_value())
+            return std::forward<F>(f)(**this);
+
+        return return_type(nullopt);
+    }
+
+    template <
+        class F,
+        typename std::enable_if<
+            is_optional<
+                decltype( std::declval<F>()(std::declval<const T&&>()) )
+            >::value, int
+        >::type = 0
+    >
+    auto and_then(F&& f) const &&
+        -> decltype( std::declval<F>()(std::declval<const T&&>()) )
+    {
+        using return_type = decltype( std::declval<F>()(std::declval<const T&&>()) );
+
+        if (has_value())
+            return std::forward<F>(f)(**this);
+
+        return return_type(nullopt);
+    }
+
     template <class F>
-        auto transform(F&& f) & -> Optional<decltype(std::declval<F>()(std::declval<T&>))>
+        auto transform(F&& f) &
+            -> Optional<decltype(std::declval<F>()(std::declval<T&>))>
         {
             using return_type = Optional<decltype(std::declval<F>()(std::declval<T&>))>;
 
