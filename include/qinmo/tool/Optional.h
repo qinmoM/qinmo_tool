@@ -77,6 +77,8 @@ public:
     static_assert(!std::is_void<T>::value, "Optional cannot be use void");
     static_assert(!std::is_reference<T>::value, "Optional cannot be use reference type");
     static_assert(!std::is_function<T>::value, "Optional cannot be use function");
+    static_assert(!std::is_same<typename std::remove_cv<T>::type, nullopt_t>::value, "Optional cannot be use nullopt_t");
+    static_assert(!std::is_same<typename std::remove_cv<T>::type, in_place_t>::value, "Optional cannot be use in_place_t");
 
 /*
                 types
@@ -146,6 +148,7 @@ public:
 
         return *this;
     }
+
     Optional& operator=(Optional&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
     {
         reset();
@@ -158,6 +161,7 @@ public:
 
         return *this;
     }
+
     template<class U = typename std::remove_cv<T>::type>
         Optional& operator=(U&& value)
         {
@@ -167,6 +171,7 @@ public:
                 emplace(std::forward<U>(value));
             return *this;
         }
+
     template<class U>
         typename std::enable_if<
             !std::is_same<T, U>::value &&
@@ -184,6 +189,7 @@ public:
 
             return *this;
         }
+
     template<class U>
         typename std::enable_if<
             !std::is_same<T, U>::value &&
@@ -201,6 +207,7 @@ public:
 
             return *this;
         }
+
     template<class... Args>
         T& emplace(Args&&... args)
         {
@@ -210,6 +217,7 @@ public:
             valid_ = true;
             return *ptr();
         }
+
     template<class U, class... Args>
         T& emplace(std::initializer_list<U> list, Args&&... args)
         {
@@ -474,7 +482,7 @@ public:
 
     template <
         class F,
-        std::enable_if<
+        typename std::enable_if<
             std::is_same<
                 decltype( std::declval<F>()() ),
                 Optional<T>
@@ -491,7 +499,7 @@ public:
 
     template <
         class F,
-        std::enable_if<
+        typename std::enable_if<
             std::is_same<
                 decltype( std::declval<F>()() ),
                 Optional<T>
