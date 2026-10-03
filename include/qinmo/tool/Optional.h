@@ -7,6 +7,8 @@
 #include <initializer_list>
 #include <utility>
 #include <stdexcept>
+// #include <type_traits>
+// #include <new>
 
 
 
@@ -104,7 +106,7 @@ public:
         }
     }
     /// @note remains valid after move, reset() must be called manually after move
-    Optional(Optional&& other) noexcept(std::is_nothrow_constructible<T>::value)
+    Optional(Optional&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
     {
         reset();
 
@@ -129,20 +131,62 @@ public:
             valid_ = true;
         }
 
-    template<class U = typename std::remove_cv<T>::type, typename std::enable_if<!std::is_convertible<U&&, T>::value, int>::type = 0>
-        explicit Optional(U&& value) { emplace(std::forward<U>(value)); }
-    template<class U = typename std::remove_cv<T>::type, typename std::enable_if<std::is_convertible<U&&, T>::value, int>::type = 0>
-        Optional(U&& value) { emplace(std::forward<U>(value)); }
+    template <
+        class U = typename std::remove_cv<T>::type,
+        typename std::enable_if<
+            !std::is_convertible<U&&, T>::value &&
+            std::is_constructible<T, U&&>::value,
+            int
+        >::type = 0
+    >
+    explicit Optional(U&& value) { emplace(std::forward<U>(value)); }
+    template <
+        class U = typename std::remove_cv<T>::type,
+        typename std::enable_if<
+            std::is_convertible<U&&, T>::value &&
+            std::is_constructible<T, U&&>::value,
+            int
+        >::type = 0
+    >
+    Optional(U&& value) { emplace(std::forward<U>(value)); }
 
-    template<class U, typename std::enable_if<!std::is_convertible<const U&, T>::value, int>::type = 0>
-        explicit Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
-    template<class U, typename std::enable_if<std::is_convertible<const U&, T>::value, int>::type = 0>
-        Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
+    template <
+        class U,
+        typename std::enable_if<
+            !std::is_convertible<const U&, T>::value &&
+            std::is_constructible<T, const U&>::value,
+            int
+        >::type = 0
+    >
+    explicit Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
+    template <
+        class U,
+        typename std::enable_if<
+            std::is_convertible<const U&, T>::value &&
+            std::is_constructible<T, const U&>::value,
+            int
+        >::type = 0
+    >
+    Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
 
-    template<class U, typename std::enable_if<!std::is_convertible<U&&, T>::value, int>::type = 0>
-        explicit Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
-    template<class U, typename std::enable_if<std::is_convertible<U&&, T>::value, int>::type = 0>
-        Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
+    template <
+        class U,
+        typename std::enable_if<
+            !std::is_convertible<U&&, T>::value &&
+            std::is_constructible<T, U&&>::value,
+            int
+        >::type = 0
+    >
+    explicit Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
+    template <
+        class U,
+        typename std::enable_if<
+            std::is_convertible<U&&, T>::value &&
+            std::is_constructible<T, U&&>::value,
+            int
+        >::type = 0
+    >
+    Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
 
 /*
                 destructor
@@ -165,7 +209,10 @@ public:
         return *this;
     }
 
-    Optional& operator=(Optional&& other) noexcept(std::is_nothrow_move_constructible<T>::value)
+    Optional& operator=(Optional&& other) noexcept(
+        std::is_nothrow_move_constructible<T>::value &&
+        std::is_nothrow_move_assignable<T>::value
+    )
     {
         if (has_value() && other.has_value())
             **this = std::move(*other);
