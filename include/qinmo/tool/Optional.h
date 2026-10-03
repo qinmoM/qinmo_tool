@@ -169,6 +169,7 @@ public:
     >
     Optional(const Optional<U>& other) { if (other.has_value()) emplace(*other); }
 
+    /// @note remains valid after move, reset() must be called manually after move
     template <
         class U,
         typename std::enable_if<
@@ -178,6 +179,7 @@ public:
         >::type = 0
     >
     explicit Optional(Optional<U>&& other){ if (other.has_value()) emplace(std::move(*other));}
+    /// @note remains valid after move, reset() must be called manually after move
     template <
         class U,
         typename std::enable_if<
@@ -209,6 +211,7 @@ public:
         return *this;
     }
 
+    /// @note remains valid after move, reset() must be called manually after move
     Optional& operator=(Optional&& other) noexcept(
         std::is_nothrow_move_constructible<T>::value &&
         std::is_nothrow_move_assignable<T>::value
@@ -252,6 +255,7 @@ public:
             return *this;
         }
 
+    /// @note remains valid after move, reset() must be called manually after move
     template<class U>
         typename std::enable_if<
             !std::is_same<T, U>::value &&
@@ -270,6 +274,7 @@ public:
             return *this;
         }
 
+    /// @brief constructs the contained value in-place
     template<class... Args>
         T& emplace(Args&&... args)
         {
@@ -280,6 +285,7 @@ public:
             return *ptr();
         }
 
+    /// @brief constructs the contained value in-place with an initializer list
     template<class U, class... Args>
         T& emplace(std::initializer_list<U> list, Args&&... args)
         {
@@ -293,7 +299,7 @@ public:
 /*
                 swap
 */
-    void swap(Optional& other) /* noexcept() */
+    void swap(Optional& other) noexcept(std::__is_nothrow_swappable<T>::value)
     {
         if (this == &other)
             return;
@@ -334,7 +340,10 @@ public:
     T&& operator*() && noexcept { return *ptr(); }
     constexpr const T&& operator*() const&& noexcept { return *ptr(); }
     constexpr explicit operator bool() const noexcept { return has_value(); }
+    /// @brief return true if has value
     constexpr bool has_value() const noexcept { return valid_; }
+    /// @brief return contained lvalue if  has_value()
+    /// @throw bad_optional_access if  !has_value()
     T& value() &
     {
         if (!has_value())
@@ -342,6 +351,8 @@ public:
 
         return *ptr();
     }
+    /// @brief return contained const lvalue if  has_value()
+    /// @throw bad_optional_access if  !has_value()
     const T& value() const &
     {
         if (!has_value())
@@ -349,6 +360,8 @@ public:
 
         return *ptr();
     }
+    /// @brief return contained rvalue if  has_value()
+    /// @throw bad_optional_access if  !has_value()
     T&& value() &&
     {
         if (!has_value())
@@ -356,6 +369,8 @@ public:
 
         return std::move(*ptr());
     }
+    /// @brief return contained const lvalue if  has_value()
+    /// @throw bad_optional_access if  !has_value()
     const T&& value() const &&
     {
         if (!has_value())
@@ -363,6 +378,8 @@ public:
 
         return std::move(*ptr());
     }
+    /// @brief return contained lvalue if has_value(), otherwise return fallback
+    /// @tparam U  T type or can be constructible to T
     template<class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
         T value_or(U&& value) const & noexcept(
                 std::is_nothrow_copy_constructible<T>::value &&
@@ -374,6 +391,8 @@ public:
 
             return std::forward<U>(value);
         }
+    /// @brief return contained rvalue if has_value(), otherwise return fallback
+    /// @tparam U  T type or can be constructible to T
     template<class U, typename std::enable_if<std::is_constructible<T, U&&>::value, int>::type = 0>
         T value_or(U&& value) && noexcept(
                 std::is_nothrow_move_constructible<T>::value &&
@@ -390,6 +409,8 @@ public:
 /*
                 monadic operations
 */
+    /// @brief invokes function with contained value and return f's result if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  lvalue of T  and returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -409,6 +430,8 @@ public:
         return return_type(nullopt);
     }
 
+    /// @brief invokes function with contained value and return f's result if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  rvalue of T  and returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -428,6 +451,8 @@ public:
         return return_type(nullopt);
     }
 
+    /// @brief invokes function with contained value and return f's result if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  const lvalue of T  and returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -447,6 +472,8 @@ public:
         return return_type(nullopt);
     }
 
+    /// @brief invokes function with contained value and return f's result if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  const lvalue of T  and returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -466,6 +493,8 @@ public:
         return return_type(nullopt);
     }
 
+    /// @brief invokes function with contained value and wraps result into Optional if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  lvalue of T  and returns non-empty value of T
     template <
         class F,
         typename std::enable_if<
@@ -485,6 +514,8 @@ public:
         return Optional<U>(nullopt);
     }
 
+    /// @brief invokes function with contained value and wraps result into Optional if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  rvalue of T  and returns non-empty value of T
     template <
         class F,
         typename std::enable_if<
@@ -504,6 +535,8 @@ public:
         return Optional<U>(nullopt);
     }
 
+    /// @brief invokes function with contained value and wraps result into Optional if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  const lvalue of T  and returns non-empty value of T
     template <
         class F,
         typename std::enable_if<
@@ -523,6 +556,8 @@ public:
         return Optional<U>(nullopt);
     }
 
+    /// @brief invokes function with contained value and wraps result into Optional if has_value(); otherwise return empty Optional.
+    /// @tparam F  accept an  const rvalue of T  and returns non-empty value of T
     template <
         class F,
         typename std::enable_if<
@@ -542,6 +577,8 @@ public:
         return Optional<U>(nullopt);
     }
 
+    /// @brief invokes function and return its result if emtpy; otherwise returns moved-value *this
+    /// @tparam F  with no arguments, returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -559,6 +596,8 @@ public:
         return std::forward<F>(f)();
     }
 
+    /// @brief invokes function and return its result if emtpy; otherwise returns *this
+    /// @tparam F  with no arguments, returns Optional<T>
     template <
         class F,
         typename std::enable_if<
@@ -579,6 +618,7 @@ public:
 /*
                 modifiers
 */
+    /// @note clear value and reset state
     void reset() noexcept
     {
         if (has_value())
