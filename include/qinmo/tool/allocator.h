@@ -16,6 +16,13 @@
 namespace qinmo
 {
 
+/// @brief check if value is power of two during compile
+constexpr bool isPowerOfTwo(std::size_t n) noexcept
+{
+    return n != 0 && (n & (n - 1)) == 0;
+}
+
+
 #if defined(__cpp_aligned_new)
     template <class T>
     using allocator = std::allocator<T>;
@@ -23,6 +30,8 @@ namespace qinmo
     template <class T>
     struct allocator
     {
+        static_assert(isPowerOfTwo(alignof(T)), "alignment must be power of two");
+
         using value_type = T;
 
         T* allocate(std::size_t num)
