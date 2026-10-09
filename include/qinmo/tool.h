@@ -2,7 +2,7 @@
  * @file <qinmo/tool.h>
  * @brief A Simple Commoly-used Tool Library
  * @details Example: Random, println, StringView ...
- * @version 4.0.1
+ * @version 4.1.1
  * @author qinmoM
  * @github https://github.com/qinmoM/qinmo_tool
  */
