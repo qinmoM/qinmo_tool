@@ -44,8 +44,8 @@ public:
                 delete seg;
         }
 
-        Segment(const Segment&) = delete;
-        Segment& operator=(const Segment&) = delete;
+        SegmentQueue(const SegmentQueue&) = delete;
+        SegmentQueue& operator=(const SegmentQueue&) = delete;
 
     public:
         /// @brief recycle a segment block
