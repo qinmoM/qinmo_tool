@@ -2,7 +2,7 @@
  * @file <qinmo/tool.h>
  * @brief A Simple Commoly-used Tool Library
  * @details Example: Random, println, StringView ...
- * @version 4.1.2
+ * @version 5.0.0
  * @author qinmoM
  * @github https://github.com/qinmoM/qinmo_tool
  */
@@ -14,5 +14,5 @@
  #include "qinmo/tool/Optional.h"
  #include "qinmo/tool/make_unique.h"
  #if defined(_WIN32) || defined(__linux__)
- #include "qinmo/tool/allocator.h"
+ #include "qinmo/tool/MPMCBounded.h"
  #endif
