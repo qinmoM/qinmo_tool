@@ -1,0 +1,228 @@
+/**
+ * @brief unbounded multi-producer and multi-consumer lock-free queue
+ * @note implemented based on MPMCBounded
+ */
+
+#pragma once
+
+#include "MPMCBounded.h"
+#include <mutex>
+#include <vector>
+
+
+
+namespace qinmo
+{
+
+/// @tparam MPMCBoundedLockFree  thread-safe bounded MPMC queue
+template <typename T, template <typename> class MPMCBoundedLockFree = MPMCBounded>
+class MPMCUnbounded
+{
+public:
+    /// @brief underlying segment block of MPMCUnbounded
+    struct Segment
+    {
+        std::unique_ptr<MPMCBoundedLockFree<T>> segment_ = nullptr;
+        Segment* next_ = nullptr;
+        alignas(hardwareInterferenceSize) std::atomic<std::size_t> pushOwnership_{ 0 };
+        alignas(hardwareInterferenceSize) std::atomic<std::size_t> pushCount_{ 0 };
+        alignas(hardwareInterferenceSize) std::atomic<std::size_t> popOwnership_{ 0 };
+        alignas(hardwareInterferenceSize) std::atomic<std::size_t> popCount_{ 0 };
+    };
+
+    /// @brief thread-safe Segment queue
+    class SegmentQueue
+    {
+    public:
+        SegmentQueue(std::size_t blickSize)
+            : blockSize_(blickSize)
+        { }
+
+        ~SegmentQueue()
+        {
+            for (Segment* seg : queue_)
+                delete seg;
+        }
+
+        Segment(const Segment&) = delete;
+        Segment& operator=(const Segment&) = delete;
+
+    public:
+        /// @brief recycle a segment block
+        void push(Segment* segment)
+        {
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                queue_.push_back(segment);
+            }
+        }
+
+        /// @brief acquire a Segment
+        /// @return auto allocate a Segment if there are no elements
+        Segment* pop()
+        {
+            Segment* ret = nullptr;
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                if (queue_.empty())
+                {
+                    Segment* seg = new Segment();
+                    seg->segment_ = qinmo::make_unique<MPMCBoundedLockFree<T>>(blockSize_);
+                    queue_.push_back(seg);
+                }
+
+                ret = queue_.back();
+                ret->next_ = nullptr;
+                ret->popCount_.store(0, std::memory_order_release);
+                ret->popOwnership_.store(0, std::memory_order_release);
+                ret->pushCount_.store(0, std::memory_order_release);
+                ret->pushOwnership_.store(0, std::memory_order_release);
+                queue_.pop_back();
+            }
+
+            return ret;
+        }
+
+    private:
+        std::mutex mutex_;
+        std::vector<Segment*> queue_;
+        const std::size_t blockSize_;
+
+    };
+
+public:
+    /// @param blockSize size of each underlying block
+    MPMCUnbounded(std::size_t blockSize)
+        : blockSize_(blockSize)
+        , queues_(blockSize)
+    {
+        head_.store(queues_.pop(), std::memory_order_release);
+        tail_.store(head_, std::memory_order_release);
+    }
+
+    ~MPMCUnbounded()
+    {
+        Segment* curr = head_.load(std::memory_order_acquire);
+
+        while (nullptr != curr)
+        {
+            queues_.push(curr);
+            curr = curr->next_;
+        }
+    }
+
+    MPMCUnbounded(const MPMCUnbounded&) = delete;
+    MPMCUnbounded& operator=(const MPMCUnbounded&) = delete;
+
+public:
+    /// @return true if construction is successful, otherwise false
+    template <typename... Args>
+    bool emplace(Args&&... args)
+    {
+        Segment* seg = tail_.load(std::memory_order_acquire);
+        std::size_t ownership = seg->pushOwnership_.load(std::memory_order_acquire);
+        while (true)
+        {
+            if (ownership == blockSize_)
+            {
+                seg = tail_.load(std::memory_order_acquire);
+                ownership = seg->pushOwnership_.load(std::memory_order_acquire);
+                continue;
+            }
+
+            if (seg->pushOwnership_.compare_exchange_strong(ownership, ownership + 1))
+            {
+                if (tail_.load(std::memory_order_acquire) != seg)
+                {
+                    seg->pushOwnership_.fetch_sub(1);
+                    seg = tail_.load(std::memory_order_acquire);
+                    ownership = seg->pushOwnership_.load(std::memory_order_acquire);
+                    continue;
+                }
+
+                if (!seg->segment_->emplace(std::forward<Args>(args)...))
+                {
+                    // what happen?
+                    std::exit(-1);
+                }
+
+                std::size_t count = seg->pushCount_.fetch_add(1) + 1;
+                if (count == blockSize_)
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(mutex_);
+
+                        seg->next_ = queues_.pop();
+                        tail_.store(seg->next_, std::memory_order_release);
+                    }
+
+                    cv_.notify_all();
+                }
+                return true;
+            }
+        }
+    }
+
+    /// @return true if added is successful, otherwise false
+    bool push(const T& val)
+    {
+        return emplace(val);
+    }
+
+    /// @return true if there are elements, otherwise false
+    bool pop(T& val)
+    {
+        Segment* seg = head_.load(std::memory_order_acquire);
+        std::size_t ownership = seg->popOwnership_.load(std::memory_order_acquire);
+        while (true)
+        {
+            if (blockSize_ == ownership)
+            {
+                seg = head_.load(std::memory_order_acquire);
+                ownership = seg->popOwnership_.load(std::memory_order_acquire);
+                continue;
+            }
+
+            if (seg->popOwnership_.compare_exchange_strong(ownership, ownership + 1))
+            {
+                if (head_.load(std::memory_order_acquire) != seg)
+                {
+                    seg->popOwnership_.fetch_sub(1);
+                    seg = head_.load(std::memory_order_acquire);
+                    ownership = seg->popOwnership_.load(std::memory_order_acquire);
+                    continue;
+                }
+
+                if (!seg->segment_->pop(val))
+                {
+                    seg->popOwnership_.fetch_sub(1);
+                    return false;
+                }
+
+                std::size_t count = seg->popCount_.fetch_add(1) + 1;
+                if (count == blockSize_)
+                {
+                    std::unique_lock<std::mutex> lock(mutex_);
+
+                    cv_.wait(lock, [seg]() -> bool { return nullptr != seg->next_; });
+
+                    head_.store(seg->next_, std::memory_order_release);
+                    queues_.push(seg);
+                }
+                return true;
+            }
+        }
+    }
+
+private:
+    SegmentQueue queues_;
+    alignas(hardwareInterferenceSize) std::atomic<Segment*> head_;
+    alignas(hardwareInterferenceSize) std::atomic<Segment*> tail_;
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+    const std::size_t blockSize_;
+
+};    
+} // namespace qinmo

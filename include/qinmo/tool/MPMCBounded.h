@@ -1,5 +1,5 @@
 /**
- * @brief bounded multi-producer ulti-consumer lock-free queue
+ * @brief bounded multi-producer multi-consumer lock-free queue
  * @note reference to rigtorp/MPMCQueue
  * @see https://github.com/rigtorp/MPMCQueue
  */
