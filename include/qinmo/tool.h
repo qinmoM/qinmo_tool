@@ -2,7 +2,7 @@
  * @file <qinmo/tool.h>
  * @brief A Simple Commoly-used Tool Library
  * @details Example: Random, println, StringView ...
- * @version 5.1.0
+ * @version 6.0.0
  * @author qinmoM
  * @github https://github.com/qinmoM/qinmo_tool
  */
@@ -16,3 +16,4 @@
  #if defined(_WIN32) || defined(__linux__)
  #include "qinmo/tool/MPMCUnbounded.h"
  #endif
+ #include "qinmo/tool/ObjectPool.h"
