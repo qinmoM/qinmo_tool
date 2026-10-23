@@ -89,20 +89,29 @@ public:
 
     static Builder builder()
     {
-        return Builder{};
+        return Builder{ };
     }
 
     std::unique_ptr<T, Deleter> acquire()
     {
         std::unique_lock<std::mutex> lock(mutex_);
+        std::size_t count = count_.load(std::memory_order_acquire);
+        Deleter deleter;
+        deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
 
         if (queue_.empty())
-            cv_.wait(lock, [this]() -> bool { return !queue_.empty(); });
+        {
+            if (count != builder_.ops_.maxSize)
+            {
+                count_.fetch_add(1);
+                return std::unique_ptr<T, Deleter>(new T(std::move(builder.rs_.create())), deleter);
+            }
+
+            cv_.wait(lock, [this, count]() -> bool { return !queue_.empty(); });
+        }
 
         T* temp = queue_.back();
         queue_.pop_back();
-        Deleter deleter;
-        deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
         return std::unique_ptr<T, Deleter>(temp, deleter);
     }
 
@@ -148,8 +157,9 @@ private:
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
-            if (isClosed() || queue_.size() >= builder_.ops_.maxIdle)
-            {
+            if (isClosed() || queue_.size() == builder_.ops_.maxIdle)
+            { 
+                count_.fetch_sub(1);
                 delete ptr;
                 return;
             }
@@ -163,6 +173,7 @@ private:
 private:
     const Builder builder_;
     std::vector<T*> queue_;
+    std::atomic<std::size_t> count_{ 0 };
     std::atomic<bool> close_{ false };
 
     std::mutex mutex_;
