@@ -3,6 +3,10 @@
 #include <functional>
 #include <memory>
 #include <stdexcept>
+#include <vector>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 
 
@@ -37,7 +41,7 @@ struct PoolRules
 
 
 template <typename T>
-class ObjectPool //  : public std::enable_shared_from_this<ObjectPool<T>>
+class ObjectPool : public std::enable_shared_from_this<ObjectPool<T>>
 {
 public:
     struct Builder
@@ -60,6 +64,23 @@ public:
     };
     friend struct Builder;
 
+private:
+    struct Deleter
+    {
+        void operator()(T* ptr) const
+        {
+            std::shared_ptr<ObjectPool<T>> poolPtr = pool.lock();
+
+            if (poolPtr)
+                poolPtr->reclaim(ptr);
+            else
+                delete ptr;
+        }
+
+        std::weak_ptr<ObjectPool<T>> pool;
+    };
+    friend class Deleter;
+
 public:
     static std::shared_ptr<ObjectPool<T>> create(const PoolOptions& ops, const PoolRules<T>& rs)
     {
@@ -71,10 +92,28 @@ public:
         return Builder{};
     }
 
-public:
-    std::unique_ptr<T, ReclaimDeleter> acquire()
+    std::unique_ptr<T, Deleter> acquire()
     {
-        ;
+        std::unique_lock<std::mutex> lock(mutex_);
+
+        if (queue_.empty())
+            cv_.wait(lock, [this]() -> bool { return !queue_.empty(); });
+
+        T* temp = queue_.back();
+        queue_.pop_back();
+        Deleter deleter;
+        deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
+        return std::unique_ptr<T, Deleter>(temp, deleter);
+    }
+
+    bool isClosed() { return close_.load(std::memory_order_acquire); }
+    void close()
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+
+        close_.store(true, std::memory_order_release);
+        for (T* ptr : queue_)
+            delete ptr;
     }
 
 private:
@@ -89,32 +128,45 @@ private:
 
         if ((builder.ops_.validateOnBorrow || builder.ops_.validateOnReturn) && nullptr == builder.rs_.validate)
             throw std::invalid_argument("validate function must be exist when validate on borrow or return");
+
+        queue_.reserve(builder.ops_.maxSize);
+
+        for (std::size_t i = 0; i < builder.ops_.initSize; ++i)
+            queue_.push_back(new T(std::move(builder.rs_.create())));
+    }
+
+    ~ObjectPool()
+    {
+        close();
     }
 
     ObjectPool(const ObjectPool&) = delete;
     ObjectPool& operator=(const ObjectPool&) = delete;
 
-private:
-    struct ReclaimDeleter
+    void reclaim(T* ptr)
     {
-        void operator()(T* ptr) const
         {
-            std::shared_ptr<ObjectPool<T>> poolPtr = pool.lock();
-            if (poolPtr)
+            std::lock_guard<std::mutex> lock(mutex_);
+
+            if (isClosed() || queue_.size() >= builder_.ops_.maxIdle)
             {
-                // poolPtr->reclaim(ptr);
+                delete ptr;
                 return;
             }
 
-            // if (poolPtr->c)
-            //     ;
-            // else
-            //     ptr->~T();
+            queue_.push_back(ptr);
         }
 
-        std::weak_ptr<ObjectPool<T>> pool;
-    };
+        cv_.notify_one();
+    }
 
+private:
     const Builder builder_;
+    std::vector<T*> queue_;
+    std::atomic<bool> close_{ false };
+
+    std::mutex mutex_;
+    std::condition_variable cv_;
+
 };
 } // namespace qinmo
