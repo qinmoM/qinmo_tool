@@ -71,6 +71,12 @@ public:
         return Builder{};
     }
 
+public:
+    std::unique_ptr<T, ReclaimDeleter> acquire()
+    {
+        ;
+    }
+
 private:
     ObjectPool(const Builder& builder)
         : builder_(builder)
@@ -84,6 +90,30 @@ private:
         if ((builder.ops_.validateOnBorrow || builder.ops_.validateOnReturn) && nullptr == builder.rs_.validate)
             throw std::invalid_argument("validate function must be exist when validate on borrow or return");
     }
+
+    ObjectPool(const ObjectPool&) = delete;
+    ObjectPool& operator=(const ObjectPool&) = delete;
+
+private:
+    struct ReclaimDeleter
+    {
+        void operator()(T* ptr) const
+        {
+            std::shared_ptr<ObjectPool<T>> poolPtr = pool.lock();
+            if (poolPtr)
+            {
+                // poolPtr->reclaim(ptr);
+                return;
+            }
+
+            // if (poolPtr->c)
+            //     ;
+            // else
+            //     ptr->~T();
+        }
+
+        std::weak_ptr<ObjectPool<T>> pool;
+    };
 
     const Builder builder_;
 };
