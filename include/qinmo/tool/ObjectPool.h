@@ -101,20 +101,23 @@ public:
     }
 
 public:
-    std::unique_ptr<T, Deleter> acquire()
+    using UniquePtr = std::unique_ptr<T, Deleter>;
+    using Clock = std::chrono::steady_clock;
+
+    UniquePtr acquire()
     {
-        return acquire_impl(true, std::chrono::time_point{ });
+        return acquire_impl(true, Clock::time_point{ });
     }
 
     template <typename Req, typename Period>
-    std::unique_ptr<T, Deleter> acquire(std::chrono::duration<Req, Period> timeout)
+    UniquePtr acquire(std::chrono::duration<Req, Period> timeout)
     {
-        return acquire_impl(true, std::chrono::steady_clock::now() + timeout);
+        return acquire_impl(true, Clock::now() + timeout);
     }
 
-    std::unique_ptr<T, Deleter> try_acquire()
+    UniquePtr try_acquire()
     {
-        return acquire_impl(false, std::chrono::time_point{ });
+        return acquire_impl(false, Clock::time_point{ });
     }
 
 
@@ -145,7 +148,7 @@ private:
         if (builder.ops_.resetOnRelease && nullptr == builder.rs_.reset)
             throw std::invalid_argument("reset function must be exist when reset on return");
 
-        if ((builder.ops_.validateOnAcquire || builder.ops_.validateOnRelease) && nullptr == builder.rs_.validate)
+        if ((builder.ops_.validateOnAcquire || builder.ops_.validateOnRelease || builder.ops_.validateOnCreate) && nullptr == builder.rs_.validate)
             throw std::invalid_argument("validate function must be exist when validate on borrow or return");
 
         queue_.reserve(builder.ops_.maxSize);
@@ -166,7 +169,7 @@ private:
             if (isClosed() || queue_.size() == builder_.ops_.maxIdle
                 || (builder_.ops_.validateOnRelease && !builder_.rs_.validate(*ptr)))
             { 
-                count_.fetch_sub(1);
+                count_ -= 1;
                 delete ptr;
                 return;
             }
@@ -181,27 +184,70 @@ private:
     }
 
 
-    std::unique_ptr<T, Deleter> acquire_impl(bool needWait, std::chrono::time_point deadline)
+    UniquePtr acquire_impl(bool needWait, Clock::time_point deadline)
     {
-        // std::unique_lock<std::mutex> lock(mutex_);
-        // std::size_t count = count_.load(std::memory_order_acquire);
-        // Deleter deleter;
-        // deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
+        std::unique_lock<std::mutex> lock(mutex_);
 
-        // if (queue_.empty())
-        // {
-        //     if (count != builder_.ops_.maxSize)
-        //     {
-        //         count_.fetch_add(1);
-        //         return std::unique_ptr<T, Deleter>(new T(std::move(builder.rs_.create())), deleter);
-        //     }
+        while (true)
+        {
+            if (isClosed())
+                return nullptr;
 
-        //     cv_.wait(lock, [this, count]() -> bool { return !queue_.empty(); });
-        // }
+            if (UniquePtr obj = tryGetIdle())
+                return obj;
 
-        // T* temp = queue_.back();
-        // queue_.pop_back();
-        // return std::unique_ptr<T, Deleter>((builder_.rs_.validate(*temp) ? temp : nullptr), deleter);
+            if (UniquePtr obj = tryGetCreate())
+                return obj;
+
+            if (!needWait)
+                return nullptr;
+
+            if (deadline != Clock::time_point{ } && Clock::now() >= deadline)
+                return nullptr;
+
+            if (cv_.wait_until(lock, deadline) == std::cv_status::timeout)
+                return nullptr;
+        }
+    }
+
+    UniquePtr convertTo(T* ptr)
+    {
+        Deleter deleter;
+        deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
+        return UniquePtr(ptr, deleter);
+    }
+
+    UniquePtr tryGetIdle()
+    {
+        while (!queue_.empty())
+        {
+            T* temp = queue_.back();
+            queue_.pop_back();
+
+            if (!builder_.ops_.validateOnAcquire || builder_.rs_.validate(*temp))
+                return convertTo(temp);
+
+            delete temp;
+        }
+
+        return nullptr;
+    }
+
+    UniquePtr tryGetCreate()
+    {
+        if (count != builder_.ops_.maxSize)
+        {
+            T* temp = new T(std::move(builder.rs_.create()));
+            if (!builder_.ops_.validateOnAcquire || builder_.rs_.validate(*temp))
+            {
+                count_ += 1;
+                return convertTo(temp);
+            }
+
+            delete temp;
+        }
+
+        return nullptr;
     }
 
 private:
