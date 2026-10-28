@@ -18,10 +18,10 @@ struct PoolOptions
     std::size_t maxSize = 1024U;       // total limit
     std::size_t maxIdle = 64U;         // max idle count
     std::size_t initSize = 0U;         // initial capacity
-    bool resetOnReturn = false;        // reset on release
+    bool resetOnRelease = false;       // reset on release
     bool validateOnCreate = false;     // validate on create
-    bool validateOnBorrow = false;     // validate on acquire
-    bool validateOnReturn = false;     // validate on release
+    bool validateOnAcquire = false;    // validate on acquire
+    bool validateOnRelease = false;    // validate on release
 };
 
 
@@ -53,10 +53,10 @@ public:
         Builder& setMaxSize(std::size_t v) { ops_.maxSize = v; return *this; }
         Builder& setMaxIdle(std::size_t v) { ops_.maxIdle = v; return *this; }
         Builder& setInitSize(std::size_t v) { ops_.initSize = v; return *this; }
-        Builder& setResetOnReturn(bool v) { ops_.resetOnReturn = v; return *this; }
-        Builder& setValidateOnBorrow(bool v) { ops_.validateOnBorrow = v; return *this; }
+        Builder& setResetOnRelease(bool v) { ops_.resetOnRelease = v; return *this; }
+        Builder& setValidateOnAcquire(bool v) { ops_.validateOnAcquire = v; return *this; }
         Builder& setValidateOnCreate(bool v) { ops_.validateOnCreate = v; return *this; }
-        Builder& setValidateOnReturn(bool v) { ops_.validateOnReturn = v; return *this; }
+        Builder& setValidateOnRelease(bool v) { ops_.validateOnRelease = v; return *this; }
         Builder& setFuncCreate(typename PoolRules<T>::CreateFunc v) { rs_.create = std::move(v); return *this; }
         Builder& setFuncClose(typename PoolRules<T>::CloseFunc v) { rs_.close = std::move(v); return *this; }
         Builder& setFuncReset(typename PoolRules<T>::ResetFunc v) { rs_.reset = std::move(v); return *this; }
@@ -77,7 +77,7 @@ private:
             std::shared_ptr<ObjectPool<T>> poolPtr = pool.lock();
 
             if (poolPtr)
-                poolPtr->reclaim(ptr);
+                poolPtr->release(ptr);
             else
                 delete ptr;
         }
@@ -87,6 +87,9 @@ private:
     friend class Deleter;
 
 public:
+    ~ObjectPool() { close(); }
+
+
     static std::shared_ptr<ObjectPool<T>> create(const PoolOptions& ops, const PoolRules<T>& rs)
     {
         return std::shared_ptr<ObjectPool<T>>(new ObjectPool<T>(Builder{ ops, rs }));
@@ -97,10 +100,7 @@ public:
         return Builder{ };
     }
 
-    ~ObjectPool() { close(); }
-
-
-
+public:
     std::unique_ptr<T, Deleter> acquire()
     {
         return acquire_impl(true, std::chrono::time_point{ });
@@ -142,10 +142,10 @@ private:
         if (builder.ops_.maxSize < builder.ops_.maxIdle || builder.ops_.maxIdle < builder.ops_.initSize)
             throw std::invalid_argument("maxSize must be >= maxIdle, maxIdle must be >= initSize");
 
-        if (builder.ops_.resetOnReturn && nullptr == builder.rs_.reset)
+        if (builder.ops_.resetOnRelease && nullptr == builder.rs_.reset)
             throw std::invalid_argument("reset function must be exist when reset on return");
 
-        if ((builder.ops_.validateOnBorrow || builder.ops_.validateOnReturn) && nullptr == builder.rs_.validate)
+        if ((builder.ops_.validateOnAcquire || builder.ops_.validateOnRelease) && nullptr == builder.rs_.validate)
             throw std::invalid_argument("validate function must be exist when validate on borrow or return");
 
         queue_.reserve(builder.ops_.maxSize);
@@ -157,20 +157,21 @@ private:
     ObjectPool(const ObjectPool&) = delete;
     ObjectPool& operator=(const ObjectPool&) = delete;
 
-
-    void reclaim(T* ptr)
+private:
+    void release(T* ptr)
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
-            if (isClosed() || queue_.size() == builder_.ops_.maxIdle || (builder_.ops_.validateOnReturn && !builder_.rs_.validate()))
+            if (isClosed() || queue_.size() == builder_.ops_.maxIdle
+                || (builder_.ops_.validateOnRelease && !builder_.rs_.validate(*ptr)))
             { 
                 count_.fetch_sub(1);
                 delete ptr;
                 return;
             }
 
-            if (builder_.ops_.resetOnReturn)
+            if (builder_.ops_.resetOnRelease)
                 builder_.rs_.reset(*ptr);
 
             queue_.push_back(ptr);
