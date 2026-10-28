@@ -77,11 +77,17 @@ private:
             std::shared_ptr<ObjectPool<T>> poolPtr = pool.lock();
 
             if (poolPtr)
+            {
                 poolPtr->release(ptr);
+            }
             else
+            {
+                state->rs_.close(*ptr);
                 delete ptr;
+            }
         }
 
+        std::shared_ptr<Builder> state;
         std::weak_ptr<ObjectPool<T>> pool;
     };
     friend class Deleter;
@@ -131,16 +137,27 @@ public:
 
     void close()
     {
-        std::lock_guard<std::mutex> lock(mutex_);
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
 
-        close_ = true;
-        for (T* ptr : queue_)
-            delete ptr;
+            if (close_)
+                return;
+
+            close_ = true;
+            for (T* ptr : queue_)
+            {
+                builder_->rs_.close(*ptr);
+                delete ptr;
+            }
+
+            queue_.clear();
+        }
+        cv_.notify_all();
     }
 
 private:
     ObjectPool(const Builder& builder)
-        : builder_(builder)
+        : builder_(new Builder(builder))
     {
         if (builder.ops_.maxSize < builder.ops_.maxIdle || builder.ops_.maxIdle < builder.ops_.initSize)
             throw std::invalid_argument("maxSize must be >= maxIdle, maxIdle must be >= initSize");
@@ -154,7 +171,10 @@ private:
         queue_.reserve(builder.ops_.maxSize);
 
         for (std::size_t i = 0; i < builder.ops_.initSize; ++i)
+        {
             queue_.push_back(new T(std::move(builder.rs_.create())));
+            count_ += 1;
+        }
     }
 
     ObjectPool(const ObjectPool&) = delete;
@@ -166,21 +186,22 @@ private:
         {
             std::lock_guard<std::mutex> lock(mutex_);
 
-            if (isClosed() || queue_.size() == builder_.ops_.maxIdle
-                || (builder_.ops_.validateOnRelease && !builder_.rs_.validate(*ptr)))
+            if (close_ || queue_.size() == builder_->ops_.maxIdle
+                || (builder_->ops_.validateOnRelease && !builder_->rs_.validate(*ptr)))
             { 
                 count_ -= 1;
+                builder_->rs_.close(*ptr);
                 delete ptr;
                 return;
             }
 
-            if (builder_.ops_.resetOnRelease)
-                builder_.rs_.reset(*ptr);
+            if (builder_->ops_.resetOnRelease)
+                builder_->rs_.reset(*ptr);
 
             queue_.push_back(ptr);
         }
 
-        cv_.notify_one();
+        cv_.notify_all();
     }
 
 
@@ -190,7 +211,7 @@ private:
 
         while (true)
         {
-            if (isClosed())
+            if (close_)
                 return nullptr;
 
             if (UniquePtr obj = tryGetIdle())
@@ -214,6 +235,7 @@ private:
     {
         Deleter deleter;
         deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
+        deleter.state = builder_;
         return UniquePtr(ptr, deleter);
     }
 
@@ -224,9 +246,11 @@ private:
             T* temp = queue_.back();
             queue_.pop_back();
 
-            if (!builder_.ops_.validateOnAcquire || builder_.rs_.validate(*temp))
+            if (!builder_->ops_.validateOnAcquire || builder_->rs_.validate(*temp))
                 return convertTo(temp);
 
+            count_ -= 1;
+            builder_->rs_.close(*temp);
             delete temp;
         }
 
@@ -235,15 +259,16 @@ private:
 
     UniquePtr tryGetCreate()
     {
-        if (count != builder_.ops_.maxSize)
+        if (count_ != builder_->ops_.maxSize)
         {
-            T* temp = new T(std::move(builder.rs_.create()));
-            if (!builder_.ops_.validateOnAcquire || builder_.rs_.validate(*temp))
+            T* temp = new T(std::move(builder_.rs_.create()));
+            if (!builder_->ops_.validateOnCreate || builder_->rs_.validate(*temp))
             {
                 count_ += 1;
                 return convertTo(temp);
             }
 
+            builder_->rs_.close(temp);
             delete temp;
         }
 
@@ -251,7 +276,7 @@ private:
     }
 
 private:
-    const Builder builder_;
+    std::shared_ptr<Builder> builder_;
     std::vector<T*> queue_;
     std::size_t count_{ 0 };
     bool close_{ false };
