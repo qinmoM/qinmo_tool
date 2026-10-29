@@ -21,7 +21,7 @@ struct PoolOptions
 {
     std::size_t maxSize = 1024U;        // total limit
     std::size_t maxIdle = 64U;          // max idle count
-    std::size_t initSize = 0U;          // initial capacity
+    std::size_t initSize = 0U;          // number of initial creation attempts
     bool resetOnRelease = false;        // reset on release
     bool validateOnCreate = false;      // validate on create
     bool validateOnAcquire = false;     // validate on acquire
@@ -162,6 +162,7 @@ public:
                 return;
 
             close_ = true;
+            count_ = 0;
             for (T* ptr : queue_)
                 closePtr(ptr);
 
@@ -183,13 +184,16 @@ private:
         if ((builder.ops_.validateOnAcquire || builder.ops_.validateOnRelease || builder.ops_.validateOnCreate) && nullptr == builder.rs_.validate)
             throw std::invalid_argument("validate function must be exist when validate on borrow or return");
 
-        queue_.reserve(builder.ops_.maxSize);
+        queue_.reserve(builder.ops_.maxIdle);
 
         for (std::size_t i = 0; i < builder.ops_.initSize; ++i)
         {
             T* temp = createPtr();
             if (builder.ops_.validateOnCreate && !builder.rs_.validate(*temp))
+            {
+                closePtr(temp);
                 continue;
+            }
 
             queue_.push_back(temp);
             count_ += 1;
@@ -204,13 +208,15 @@ private:
     void release(T* ptr)
     {
         {
-            std::lock_guard<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
 
             if (close_ || queue_.size() == builder_->ops_.maxIdle
                 || (builder_->ops_.validateOnRelease && !builder_->rs_.validate(*ptr)))
             { 
                 closePtr(ptr);
                 count_ -= 1;
+                lock.unlock();
+                cv_.notify_all();
                 return;
             }
 
@@ -245,7 +251,9 @@ private:
             if (deadline != Clock::time_point{ } && Clock::now() >= deadline)
                 return nullptr;
 
-            if (cv_.wait_until(lock, deadline) == std::cv_status::timeout)
+            if (deadline == Clock::time_point{ })
+                cv_.wait(lock);
+            else if (cv_.wait_until(lock, deadline) == std::cv_status::timeout)
                 return nullptr;
         }
     }
@@ -291,7 +299,7 @@ private:
 
             if (!builder_->ops_.validateOnAcquire || builder_->rs_.validate(*temp))
             {
-                if (!builder_->ops_.allowReturnOnTimeout && Clock::now() >= deadline)
+                if (deadline != Clock::time_point{ } && !builder_->ops_.allowReturnOnTimeout && Clock::now() >= deadline)
                 {
                     queue_.push_back(temp);
                     return nullptr;
