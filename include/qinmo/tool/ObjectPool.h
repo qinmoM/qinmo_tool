@@ -33,10 +33,10 @@ struct PoolRules
     using ResetFunc = std::function<void(T&)>;
     using ValidateFunc = std::function<bool(T&)>;
 
-    CreateFunc create = nullptr;
-    CloseFunc close = nullptr;
-    ResetFunc reset = nullptr;
-    ValidateFunc validate = nullptr;
+    CreateFunc create = nullptr;        // object creation function
+    CloseFunc close = nullptr;          // object closure function
+    ResetFunc reset = nullptr;          // reset state when returned
+    ValidateFunc validate = nullptr;    // check whether the object is valid
 };
 
 
@@ -96,11 +96,13 @@ public:
     ~ObjectPool() { close(); }
 
 
+    /// @brief create a pool with `options` and `rules`
     static std::shared_ptr<ObjectPool<T>> create(const PoolOptions& ops, const PoolRules<T>& rs)
     {
         return std::shared_ptr<ObjectPool<T>>(new ObjectPool<T>(Builder{ ops, rs }));
     }
 
+    /// @brief return a builder
     static Builder builder()
     {
         return Builder{ };
@@ -110,17 +112,24 @@ public:
     using UniquePtr = std::unique_ptr<T, Deleter>;
     using Clock = std::chrono::steady_clock;
 
+    /// @brief acquire object with blocking
+    /// @return object's unique pointer
     UniquePtr acquire()
     {
         return acquire_impl(true, Clock::time_point{ });
     }
 
+    /// @brief acquire object with blocking, return upon timeout
+    /// @param timeout relative time, such as `std::chrono::milliseconds(1)`
+    /// @return object's unique pointer
     template <typename Req, typename Period>
     UniquePtr acquire(std::chrono::duration<Req, Period> timeout)
     {
         return acquire_impl(true, Clock::now() + timeout);
     }
 
+    /// @brief non-blocking acquire of object
+    /// @return object's unique pointer
     UniquePtr try_acquire()
     {
         return acquire_impl(false, Clock::time_point{ });
@@ -128,6 +137,7 @@ public:
 
 
 
+    /// @return true if the pool is closed
     bool isClosed()
     {
         std::lock_guard<std::mutex> lock(mutex_);
@@ -135,6 +145,8 @@ public:
         return close_;
     }
 
+    /// @brief close this pool
+    /// @note object cannot be acquired after `close`
     void close()
     {
         {
@@ -239,6 +251,8 @@ private:
         return UniquePtr(ptr, deleter);
     }
 
+    /// @brief try to take a object from queue
+    /// @note must be called under lock
     UniquePtr tryGetIdle()
     {
         while (!queue_.empty())
@@ -257,6 +271,8 @@ private:
         return nullptr;
     }
 
+    /// @brief try to take a object from queue
+    /// @note must be called under lock
     UniquePtr tryGetCreate()
     {
         if (count_ != builder_->ops_.maxSize)
