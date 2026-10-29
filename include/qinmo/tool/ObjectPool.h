@@ -1,3 +1,7 @@
+/**
+ * @brief thread-safely object pool
+ */
+
 #pragma once
 
 #include <functional>
@@ -15,13 +19,14 @@ namespace qinmo
 
 struct PoolOptions
 {
-    std::size_t maxSize = 1024U;       // total limit
-    std::size_t maxIdle = 64U;         // max idle count
-    std::size_t initSize = 0U;         // initial capacity
-    bool resetOnRelease = false;       // reset on release
-    bool validateOnCreate = false;     // validate on create
-    bool validateOnAcquire = false;    // validate on acquire
-    bool validateOnRelease = false;    // validate on release
+    std::size_t maxSize = 1024U;        // total limit
+    std::size_t maxIdle = 64U;          // max idle count
+    std::size_t initSize = 0U;          // initial capacity
+    bool resetOnRelease = false;        // reset on release
+    bool validateOnCreate = false;      // validate on create
+    bool validateOnAcquire = false;     // validate on acquire
+    bool validateOnRelease = false;     // validate on release
+    bool allowReturnOnTimeout = true;   // `acquire` allowed returning a valid object, even on timeout
 };
 
 
@@ -57,6 +62,7 @@ public:
         Builder& setValidateOnAcquire(bool v) { ops_.validateOnAcquire = v; return *this; }
         Builder& setValidateOnCreate(bool v) { ops_.validateOnCreate = v; return *this; }
         Builder& setValidateOnRelease(bool v) { ops_.validateOnRelease = v; return *this; }
+        Builder& setAllowReturnOnTimeout(bool v) { ops_.allowReturnOnTimeout = v; return *this; }
         Builder& setFuncCreate(typename PoolRules<T>::CreateFunc v) { rs_.create = std::move(v); return *this; }
         Builder& setFuncClose(typename PoolRules<T>::CloseFunc v) { rs_.close = std::move(v); return *this; }
         Builder& setFuncReset(typename PoolRules<T>::ResetFunc v) { rs_.reset = std::move(v); return *this; }
@@ -181,7 +187,11 @@ private:
 
         for (std::size_t i = 0; i < builder.ops_.initSize; ++i)
         {
-            queue_.push_back(createPtr());
+            T* temp = createPtr();
+            if (builder.ops_.validateOnCreate && !builder.rs_.validate(*temp))
+                continue;
+
+            queue_.push_back(temp);
             count_ += 1;
         }
     }
@@ -223,10 +233,10 @@ private:
             if (close_)
                 return nullptr;
 
-            if (UniquePtr obj = tryGetIdle())
+            if (UniquePtr obj = tryGetIdle(deadline))
                 return obj;
 
-            if (UniquePtr obj = tryGetCreate())
+            if (UniquePtr obj = tryGetCreate(deadline))
                 return obj;
 
             if (!needWait)
@@ -271,7 +281,8 @@ private:
 
     /// @brief try to take a object from queue
     /// @note must be called under lock
-    UniquePtr tryGetIdle()
+    /// @note support `allowReturnOnTimeout` option
+    UniquePtr tryGetIdle(Clock::time_point deadline)
     {
         while (!queue_.empty())
         {
@@ -279,7 +290,15 @@ private:
             queue_.pop_back();
 
             if (!builder_->ops_.validateOnAcquire || builder_->rs_.validate(*temp))
+            {
+                if (!builder_->ops_.allowReturnOnTimeout && Clock::now() >= deadline)
+                {
+                    queue_.push_back(temp);
+                    return nullptr;
+                }
+
                 return convertTo(temp);
+            }
 
             count_ -= 1;
             closePtr(temp);
@@ -290,13 +309,20 @@ private:
 
     /// @brief try to take a object from queue
     /// @note must be called under lock
-    UniquePtr tryGetCreate()
+    /// @note support `allowReturnOnTimeout` option
+    UniquePtr tryGetCreate(Clock::time_point deadline)
     {
         if (count_ != builder_->ops_.maxSize)
         {
             T* temp = createPtr();
             if (!builder_->ops_.validateOnCreate || builder_->rs_.validate(*temp))
             {
+                if (!builder_->ops_.allowReturnOnTimeout && Clock::now() >= deadline)
+                {
+                    closePtr(temp);
+                    return nullptr;
+                }
+
                 count_ += 1;
                 return convertTo(temp);
             }
