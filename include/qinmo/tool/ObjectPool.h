@@ -184,7 +184,7 @@ private:
 
         for (std::size_t i = 0; i < builder.ops_.initSize; ++i)
         {
-            queue_.push_back(new T(std::move(builder.rs_.create())));
+            queue_.push_back(createPtr());
             count_ += 1;
         }
     }
@@ -243,6 +243,16 @@ private:
         }
     }
 
+    /// @brief return a heap object pointer
+    /// @note default construct without creator
+    T* createPtr()
+    {
+        if (builder_->rs_.create)
+            return new T(std::move(builder_.rs_.create()));
+        else
+            return new T();
+    }
+
     UniquePtr convertTo(T* ptr)
     {
         Deleter deleter;
@@ -277,7 +287,7 @@ private:
     {
         if (count_ != builder_->ops_.maxSize)
         {
-            T* temp = new T(std::move(builder_.rs_.create()));
+            T* temp = createPtr();
             if (!builder_->ops_.validateOnCreate || builder_->rs_.validate(*temp))
             {
                 count_ += 1;
