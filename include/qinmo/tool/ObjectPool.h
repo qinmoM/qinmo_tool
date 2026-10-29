@@ -82,12 +82,12 @@ private:
             }
             else
             {
-                state->rs_.close(*ptr);
+                builder->rs_.close(*ptr);
                 delete ptr;
             }
         }
 
-        std::shared_ptr<Builder> state;
+        std::shared_ptr<Builder> builder;
         std::weak_ptr<ObjectPool<T>> pool;
     };
     friend class Deleter;
@@ -157,10 +157,7 @@ public:
 
             close_ = true;
             for (T* ptr : queue_)
-            {
-                builder_->rs_.close(*ptr);
-                delete ptr;
-            }
+                closePtr(ptr);
 
             queue_.clear();
         }
@@ -193,6 +190,7 @@ private:
     ObjectPool& operator=(const ObjectPool&) = delete;
 
 private:
+    /// @brief recycle if the pool is not closed; otherwise delete directly
     void release(T* ptr)
     {
         {
@@ -201,9 +199,8 @@ private:
             if (close_ || queue_.size() == builder_->ops_.maxIdle
                 || (builder_->ops_.validateOnRelease && !builder_->rs_.validate(*ptr)))
             { 
+                closePtr(ptr);
                 count_ -= 1;
-                builder_->rs_.close(*ptr);
-                delete ptr;
                 return;
             }
 
@@ -243,21 +240,32 @@ private:
         }
     }
 
-    /// @brief return a heap object pointer
+    /// @brief create a heap object and return its raw pointer
     /// @note default construct without creator
     T* createPtr()
     {
         if (builder_->rs_.create)
-            return new T(std::move(builder_.rs_.create()));
+            return new T(std::move(builder_->rs_.create()));
         else
             return new T();
     }
 
+    /// @brief close and delete a raw pointer to obbject
+    /// @note call the closer first if it exists
+    void closePtr(T* ptr)
+    {
+        if (builder_->rs_.close)
+            builder_->rs_.close(*ptr);
+
+        delete ptr;
+    }
+
+    /// @brief convert raw pointer to `UniquePtr`
     UniquePtr convertTo(T* ptr)
     {
         Deleter deleter;
         deleter.pool = std::weak_ptr<ObjectPool>(this->shared_from_this());
-        deleter.state = builder_;
+        deleter.builder = builder_;
         return UniquePtr(ptr, deleter);
     }
 
@@ -274,8 +282,7 @@ private:
                 return convertTo(temp);
 
             count_ -= 1;
-            builder_->rs_.close(*temp);
-            delete temp;
+            closePtr(temp);
         }
 
         return nullptr;
@@ -294,8 +301,7 @@ private:
                 return convertTo(temp);
             }
 
-            builder_->rs_.close(temp);
-            delete temp;
+            closePtr(temp);
         }
 
         return nullptr;
