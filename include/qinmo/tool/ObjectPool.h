@@ -131,6 +131,15 @@ public:
     template <typename Req, typename Period>
     UniquePtr acquire(std::chrono::duration<Req, Period> timeout)
     {
+        const Clock::time_point now = Clock::now();
+
+        if (timeout.zero() >= timeout)
+            acquire_impl(true, now);
+
+        using Seconds = std::chrono::duration<long double>;
+        if (Seconds(timeout) >= Seconds(Clock::time_point::max() - now))
+            return acquire_impl(true, Clock::time_point{ });
+
         return acquire_impl(true, Clock::now() + timeout);
     }
 
