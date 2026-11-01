@@ -96,7 +96,7 @@ private:
         std::shared_ptr<Builder> builder;
         std::weak_ptr<ObjectPool<T>> pool;
     };
-    friend class Deleter;
+    friend struct Deleter;
 
 public:
     ~ObjectPool() { close(); }

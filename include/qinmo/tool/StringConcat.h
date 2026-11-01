@@ -112,7 +112,7 @@ std::size_t find_BMH(const char* haystack, std::size_t haystackSize, const char*
     for (int i = 0; i < 256; ++i)
         shift[i] = needleSize;
 
-    for (int i = 0; i < needleSize - 1; ++i)
+    for (std::size_t i = 0; i < needleSize - 1; ++i)
         shift[static_cast<unsigned char>(needle[i])] = needleSize - i - 1;
 
     std::size_t i = needleSize - 1;
