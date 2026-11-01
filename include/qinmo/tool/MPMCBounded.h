@@ -17,7 +17,14 @@ namespace qinmo
 /// @brief cache line size
 /// @note uses the implementation-defined value provided by the standard library.
 #if defined(__cpp_lib_hardware_interference_size) && !defined(__APPLE__)
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Winterference-size"
+#endif
 constexpr std::size_t hardwareInterferenceSize = std::hardware_destructive_interference_size;
+#if defined(__GNUC__) && !defined(__clang__)
+#pragma GCC diagnostic pop
+#endif
 #else
 constexpr std::size_t hardwareInterferenceSize = 64;
 #endif
