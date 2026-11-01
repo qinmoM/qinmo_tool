@@ -72,7 +72,7 @@ constexpr std::size_t kFindNpos = std::size_t(-1);
 /// @param haystack main string
 /// @param needle pattern string
 /// @return first matching index, qinmo::kFindNpos if not found
-std::size_t find_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t find_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (nullptr == haystack || nullptr == needle)
         return kFindNpos;
@@ -100,7 +100,7 @@ std::size_t find_BF(const char* haystack, std::size_t haystackSize, const char* 
 /// @param haystack main string
 /// @param needle pattern string
 /// @return first matching index, qinmo::kFindNpos if not found
-std::size_t find_BMH(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t find_BMH(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (nullptr == haystack || nullptr == needle || haystackSize < needleSize)
         return kFindNpos;
@@ -138,7 +138,7 @@ std::size_t find_BMH(const char* haystack, std::size_t haystackSize, const char*
 /// @param haystack main string
 /// @param needle pattern string
 /// @return first matching index, qinmo::kFindNpos if not found
-std::size_t find_KMP(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize)
+inline std::size_t find_KMP(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize)
 {
     if (nullptr == haystack || nullptr == needle)
         return kFindNpos;
@@ -178,7 +178,7 @@ std::size_t find_KMP(const char* haystack, std::size_t haystackSize, const char*
 /// @param haystack main string
 /// @param needle pattern string
 /// @return first matching index, qinmo::kFindNpos if not found
-std::size_t find_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t find_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (haystackSize < needleSize)
         return kFindNpos;
@@ -191,7 +191,7 @@ std::size_t find_default(const char* haystack, std::size_t haystackSize, const c
 
 /// @brief same as find_BF except for the reversed
 /// @return haystackSize when empty needle
-std::size_t rfind_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t rfind_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (nullptr == haystack || nullptr == needle)
         return kFindNpos;
@@ -216,7 +216,7 @@ std::size_t rfind_BF(const char* haystack, std::size_t haystackSize, const char*
 
 /// @brief same as find_BMH except for the reversed
 /// @return haystackSize when empty needle
-std::size_t rfind_BMH(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t rfind_BMH(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (nullptr == haystack || nullptr == needle || haystackSize < needleSize)
         return kFindNpos;
@@ -252,7 +252,7 @@ std::size_t rfind_BMH(const char* haystack, std::size_t haystackSize, const char
 
 /// @brief same as find_default except for the reversed
 /// @return haystackSize when empty needle
-std::size_t rfind_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
+inline std::size_t rfind_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize) noexcept
 {
     if (haystackSize < needleSize)
         return kFindNpos;
@@ -266,7 +266,7 @@ std::size_t rfind_default(const char* haystack, std::size_t haystackSize, const 
 
 /// @brief find first character in haystack present needle, use Brute-Force algorithm
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_first_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_first_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
         return kFindNpos;
@@ -303,7 +303,7 @@ std::size_t find_first_of_BF(const char* haystack, std::size_t haystackSize, con
 
 /// @brief find first character in haystack present needle, use Hash Table
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_first_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_first_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
         return kFindNpos;
@@ -335,7 +335,7 @@ std::size_t find_first_of_Hash(const char* haystack, std::size_t haystackSize, c
 
 /// @brief find first character in haystack present needle
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_first_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_first_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (8 <= needleSize && 130 >= needleSize)
         return find_first_of_Hash(haystack, haystackSize, needle, needleSize, exists);
@@ -345,7 +345,7 @@ std::size_t find_first_of_default(const char* haystack, std::size_t haystackSize
 
 /// @brief find last character in haystack present needle, use Brute-Force algorithm
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_last_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_last_of_BF(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
         return kFindNpos;
@@ -382,7 +382,7 @@ std::size_t find_last_of_BF(const char* haystack, std::size_t haystackSize, cons
 
 /// @brief find last character in haystack present needle, use Hash Table
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_last_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_last_of_Hash(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (nullptr == haystack || nullptr == needle || 0 == haystackSize || 0 == needleSize)
         return kFindNpos;
@@ -414,7 +414,7 @@ std::size_t find_last_of_Hash(const char* haystack, std::size_t haystackSize, co
 
 /// @brief find last character in haystack present needle
 /// @param exists true represents exists, false represents non-exists
-std::size_t find_last_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
+inline std::size_t find_last_of_default(const char* haystack, std::size_t haystackSize, const char* needle, std::size_t needleSize, bool exists = true) noexcept
 {
     if (8 <= needleSize && 130 >= needleSize)
         return find_last_of_Hash(haystack, haystackSize, needle, needleSize, exists);
