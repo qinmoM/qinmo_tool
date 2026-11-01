@@ -17,6 +17,16 @@ int main()
     std::cout << view << std::endl;
     std::cout << view[1] << std::endl;
 
+    // random
+    std::cout << qinmo::RandomInt16::rand(9, 31) << '\n';
+
+    // optional
+    qinmo::Optional<int> op;
+    op.emplace(10);
+    auto res = op.or_else(
+        // ...
+    );
+
     return 0;
 }
 ```
@@ -26,9 +36,11 @@ int main()
 ## Install
 
 - Clone this library into your third-party folder.
+- Or you can use `git submodule`.
 
 ```shell
-git clone -b main --single-branch https://github.com/qinmoM/qinmo_tool
+# git clone -b main --single-branch https://github.com/qinmoM/qinmo_tool
+git submodule add https://github.com/qinmoM/qinmo_tool external/qinmo_tool
 ```
 
 - Append the following lines to the end of your `CMakeLists.txt`.
@@ -36,7 +48,8 @@ git clone -b main --single-branch https://github.com/qinmoM/qinmo_tool
 ```cmake
 add_subdirectory(
     # third-party path  +  qinmo_tool
-    # example: external/qinmo_tool
+    # example: 
+    external/qinmo_tool
 )
 
 target_link_libraries(${PROJECT_NAME}
