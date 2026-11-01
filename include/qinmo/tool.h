@@ -8,12 +8,14 @@
  */
 #pragma once
 
- #include "qinmo/tool/Random.h"
- #include "qinmo/tool/StringView.h"
- #include "qinmo/tool/Span.h"
- #include "qinmo/tool/Optional.h"
- #include "qinmo/tool/make_unique.h"
- #if defined(_WIN32) || defined(__linux__)
- #include "qinmo/tool/MPMCUnbounded.h"
- #endif
- #include "qinmo/tool/ObjectPool.h"
+#include "qinmo/tool/Random.h"
+#include "qinmo/tool/StringView.h"
+#include "qinmo/tool/Span.h"
+#include "qinmo/tool/Optional.h"
+#include "qinmo/tool/make_unique.h"
+#include "qinmo/tool/ObjectPool.h"
+
+#if defined(_WIN32) || defined(__linux__)
+/// @note the ache line interference size may vary between compilers, compiler versions and CPU tuning options
+#include "qinmo/tool/MPMCUnbounded.h"
+#endif
