@@ -1,5 +1,6 @@
 /**
  * @note logs maybe not write into file if terminater
+ * @note do not use in other destructor of static classes
  * @note use `QINMO_LOG_LEVEL` to specify output level in cmake
  */
 #pragma once
@@ -46,7 +47,6 @@ enum class LogOutputModel
     None,               // ignore
     Console,            // print to console
     SingleFile          // output to the single file
-    // MultiFileDate       // output to difference files by date
 };
 
 
@@ -72,23 +72,100 @@ public:
     template<typename... Args>
     void log(Args&&... args)
     {
-        if (LogOutputModel::None == model_)
-            return;
-
         std::string time = detail::nowMicrosecondsString();
         std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:");
         std::string str = qinmo::concat("[UTC:", time, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
 
-        if (LogOutputModel::Console == model_)
+        std::unique_lock<std::mutex> lock(mutex_);
+        std::unique_lock<std::mutex> subLock(subMutex_);
+
+        if (LogOutputModel::None == model_)
+        {
+            return;
+        }
+        else if (LogOutputModel::Console == model_)
         {
             qinmo::print(str);
             return;
         }
+        else if (LogOutputModel::SingleFile == model_)
+        {
+            queue_.push(std::move(str));
+            if (queue_.size() >= 1024)
+            {
+                subLock.unlock();
+                cv_.notify_one();
+            }
+        }
+    }
 
+    bool setModel(const LogOutputModel& model, const std::string& path)
+    {
         std::lock_guard<std::mutex> lock(mutex_);
-        queue_.push(std::move(str));
-        if (queue_.size() >= 1024)
-            cv_.notify_one();
+
+        if (LogOutputModel::None == model)
+        {
+            if (LogOutputModel::Console == model_)
+            {
+                model_ = model;
+                return true;
+            }
+            else if (LogOutputModel::SingleFile == model_)
+            {
+                flushAndCloseInMainLock();
+                model_ = model;
+                return true;
+            }
+            return true;
+        }
+        else if (LogOutputModel::Console == model)
+        {
+            if (LogOutputModel::None == model_)
+            {
+                model_ = model;
+                return true;
+            }
+            else if (LogOutputModel::SingleFile == model_)
+            {
+
+                flushAndCloseInMainLock();
+                model_ = model;
+                return true;
+            }
+            return true;
+        }
+        else if (LogOutputModel::SingleFile == model)
+        {
+            if (LogOutputModel::None == model_)
+            {
+                std::lock_guard<std::mutex> subLock(subMutex_);
+                ofs_.open(path, std::ios::app);
+                if (!ofs_.is_open())
+                    return false;
+
+                model_ = model;
+                return true;
+            }
+            else if (LogOutputModel::Console == model_)
+            {
+                std::lock_guard<std::mutex> subLock(subMutex_);
+                ofs_.open(path, std::ios::app);
+                if (!ofs_.is_open())
+                    return false;
+
+                model_ = model;
+                return true;
+            }
+
+            std::ofstream newFile(path, std::ios::app);
+            if (!newFile.is_open())
+                return false;
+
+            ofs_.close();
+            ofs_ = std::move(newFile);
+            return true;
+        }
+        return false;
     }
 
     /// @brief flush buffer
@@ -96,6 +173,7 @@ public:
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> subLock(subMutex_);
             needtoFlush_ = true;
         }
         cv_.notify_one();
@@ -106,7 +184,7 @@ private:
     {
         while (true)
         {
-            std::unique_lock<std::mutex> lock(mutex_);
+            std::unique_lock<std::mutex> lock(subMutex_);
             cv_.wait_for(lock, std::chrono::seconds(1), [this]() -> bool { return 1024 <= queue_.size() || !running_ || needtoFlush_; });
 
             if (!running_ && queue_.empty())
@@ -125,31 +203,52 @@ private:
 
             ofs_.flush();
         }
+        qinmo::println("work quit");
+    }
+
+    void flushAndCloseInMainLock()
+    {
+        std::lock_guard<std::mutex> subLock(subMutex_);
+        while (!queue_.empty())
+        {
+            ofs_ << queue_.front();
+            queue_.pop();
+        }
+        ofs_.flush();
+        ofs_.close();
+    }
+
+    void closeThread()
+    {
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            std::lock_guard<std::mutex> subLock(subMutex_);
+            running_ = false;
+        }
+
+        cv_.notify_one();
+
+        if (thread_.joinable())
+            thread_.join();
+
+        if (LogOutputModel::SingleFile == model_)
+        {
+            ofs_.flush();
+            ofs_.close();
+        }
     }
 
     Logger()
-        // : ofs_("logs.log", std::ios::app)
         : model_(LogOutputModel::Console)
         , needtoFlush_(false)
         , running_(true)
     {
-        ofs_ << '\n';
         thread_ = std::thread([this]() -> void { threadWorkFunc(); });
     }
 
     ~Logger()
     {
-        {
-            std::lock_guard<std::mutex> lock(mutex_);
-            running_ = false;
-        }
-
-        cv_.notify_one();
-        if (thread_.joinable())
-            thread_.join();
-
-        ofs_.flush();
-        ofs_.close();
+        closeThread();
     }
 
 private:
@@ -158,6 +257,7 @@ private:
     std::queue<std::string> queue_;
 
     std::mutex mutex_;
+    std::mutex subMutex_;
     std::condition_variable cv_;
 
     LogOutputModel model_;
@@ -259,8 +359,7 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 
 inline bool logSetModel(const LogOutputModel& model, const std::string& path = "")
 {
-    // return detail::Logger::instance().setModel(model, path);
-    return false;
+    return detail::Logger::instance().setModel(model, path);
 }
 
 inline void logFlush()
