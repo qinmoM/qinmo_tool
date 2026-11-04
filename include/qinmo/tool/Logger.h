@@ -41,6 +41,14 @@ namespace qinmo
 #endif
 
 
+enum class LogOutputModel
+{
+    None,               // ignore
+    Console,            // print to console
+    SingleFile          // output to the single file
+    // MultiFileDate       // output to difference files by date
+};
+
 
 /// @namespace qinmo::log::detail
 /// @warning For internal use only, do NOT use it from outside the library
@@ -64,9 +72,18 @@ public:
     template<typename... Args>
     void log(Args&&... args)
     {
+        if (LogOutputModel::None == model_)
+            return;
+
         std::string time = detail::nowMicrosecondsString();
-        std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:") + std::to_string(detail::getNativeTid()) + "]";
-        std::string str = qinmo::concat("[UTC:", time, "] ", tid, " ", args..., '\n');
+        std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:");
+        std::string str = qinmo::concat("[UTC:", time, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
+
+        if (LogOutputModel::Console == model_)
+        {
+            qinmo::print(str);
+            return;
+        }
 
         std::lock_guard<std::mutex> lock(mutex_);
         queue_.push(std::move(str));
@@ -111,9 +128,10 @@ private:
     }
 
     Logger()
-        : ofs_("logs.log", std::ios::app)
-        , running_(true)
+        // : ofs_("logs.log", std::ios::app)
+        : model_(LogOutputModel::Console)
         , needtoFlush_(false)
+        , running_(true)
     {
         ofs_ << '\n';
         thread_ = std::thread([this]() -> void { threadWorkFunc(); });
@@ -138,8 +156,11 @@ private:
     std::ofstream ofs_;
     std::thread thread_;
     std::queue<std::string> queue_;
+
     std::mutex mutex_;
     std::condition_variable cv_;
+
+    LogOutputModel model_;
     bool needtoFlush_;
     bool running_;
 
@@ -233,5 +254,18 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 #else
     #define QINMO_FATAL(...) ((void)0)
 #endif
+
+
+
+inline bool logSetModel(const LogOutputModel& model, const std::string& path = "")
+{
+    // return detail::Logger::instance().setModel(model, path);
+    return false;
+}
+
+inline void logFlush()
+{
+    return detail::Logger::instance().flush();
+}
 
 } // namespace qinmo
