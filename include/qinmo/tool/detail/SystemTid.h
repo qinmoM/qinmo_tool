@@ -4,7 +4,7 @@
 #include <thread>
 
 #if defined(__linux__) || defined(_WIN32)
-#define _QINMO_SUPPORTED_PLATFORM_TID
+#define QINMO_DETAIL_SUPPORTED_PLATFORM_TID
 #endif
 
 
@@ -19,7 +19,7 @@ namespace detail
 /// @brief true if fetching the system thread ID is supported
 extern bool g_isOsTid;
 
-#ifdef _QINMO_SUPPORTED_PLATFORM_TID
+#ifdef QINMO_DETAIL_SUPPORTED_PLATFORM_TID
 /// @brief try to fetch system tid
 /// @return unsigned 64-bit integer
 uint64_t getNativeTid();

@@ -26,23 +26,23 @@ namespace qinmo
 #define QINMO_LOG_LEVEL 3
 #endif
 
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 0
-#define _QINMO_ENABLE_TRACE
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 0
+#define QINMO_DETAIL_ENABLE_TRACE
 #endif
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 1
-#define _QINMO_ENABLE_DEBUG
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 1
+#define QINMO_DETAIL_ENABLE_DEBUG
 #endif
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 2
-#define _QINMO_ENABLE_INFO
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 2
+#define QINMO_DETAIL_ENABLE_INFO
 #endif
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 3
-#define _QINMO_ENABLE_WARN
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 3
+#define QINMO_DETAIL_ENABLE_WARN
 #endif
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 4
-#define _QINMO_ENABLE_ERROR
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 4
+#define QINMO_DETAIL_ENABLE_ERROR
 #endif
-#if defined(_QINMO_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 5
-#define _QINMO_ENABLE_FATAL
+#if defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME) && QINMO_LOG_LEVEL <= 5
+#define QINMO_DETAIL_ENABLE_FATAL
 #endif
 
 #if QINMO_LOG_LEVEL < 0 || QINMO_LOG_LEVEL > 5
@@ -188,12 +188,17 @@ private:
         , needtoFlush_(false)
         , running_(true)
     {
-        if (LogOutputModel::SingleFile == model_)
+        if (LogOutputModel::Console == model_)
+        {
+            qinmo::println();
+        }
+        else if (LogOutputModel::SingleFile == model_)
         {
             ofs_.open(QINMO_LOG_PATH, std::ios::app);
             if (!ofs_.is_open())
                 throw std::logic_error("Logger::Logger: log file does not exist.");
 
+            ofs_ << '\n';
             thread_ = std::thread([this]() -> void { threadWorkFunc(); });
         }
     }
@@ -263,28 +268,28 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 
 
 /// @brief Used for tracking details and recording state changes
-#ifdef _QINMO_ENABLE_TRACE
+#ifdef QINMO_DETAIL_ENABLE_TRACE
     #define QINMO_TRACE(...) do { qinmo::detail::trace_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_TRACE(...) ((void)0)
 #endif
 
 /// @brief Debug only, should be turned off in production
-#ifdef _QINMO_ENABLE_DEBUG
+#ifdef QINMO_DETAIL_ENABLE_DEBUG
     #define QINMO_DEBUG(...) do { qinmo::detail::debug_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_DEBUG(...) ((void)0)
 #endif
 
 /// @brief normal runtime information
-#ifdef _QINMO_ENABLE_INFO
+#ifdef QINMO_DETAIL_ENABLE_INFO
     #define QINMO_INFO(...) do { qinmo::detail::info_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_INFO(...) ((void)0)
 #endif
 
 /// @brief Not an error, but requires attention
-#ifdef _QINMO_ENABLE_WARN
+#ifdef QINMO_DETAIL_ENABLE_WARN
     #define QINMO_WARN(...) do { qinmo::detail::warn_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_WARN(...) ((void)0)
@@ -292,7 +297,7 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 
 /// @brief Error, affects a single operation, but the program remain running.
 /// @note flush the buffer immediately
-#ifdef _QINMO_ENABLE_ERROR
+#ifdef QINMO_DETAIL_ENABLE_ERROR
     #define QINMO_ERROR(...) do { qinmo::detail::error_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_ERROR(...) ((void)0)
@@ -300,7 +305,7 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 
 /// @brief Fatal error, the program cannot run normally.
 /// @note flush the buffer immediately
-#ifdef _QINMO_ENABLE_FATAL
+#ifdef QINMO_DETAIL_ENABLE_FATAL
     #define QINMO_FATAL(...) do { qinmo::detail::fatal_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
     #define QINMO_FATAL(...) ((void)0)

@@ -5,7 +5,7 @@
 
 
 #if defined(__linux__) || defined(_WIN32)
-#define _QINMO_SUPPORTED_PLATFORM_TIME
+#define QINMO_DETAIL_SUPPORTED_PLATFORM_TIME
 #endif
 
 
@@ -36,7 +36,7 @@ inline bool gmtime(const ::time_t& time, std::tm& tm)
 /// @return empty string on failure
 inline std::string nowMicrosecondsString()
 {
-#if !defined(_QINMO_SUPPORTED_PLATFORM_TIME)
+#if !defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME)
     return "";
 #endif
     // UTC time
