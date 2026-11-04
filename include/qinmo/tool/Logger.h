@@ -13,6 +13,7 @@
 #include "detail/SystemTime.h"
 #include "detail/SystemTid.h"
 #include <mutex>
+#include <condition_variable>
 #include <fstream>
 #include <queue>
 

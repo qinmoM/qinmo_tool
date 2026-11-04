@@ -58,7 +58,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # change log level
-# see detail: qinmo/tool/Logger.h
+# see detail: include/qinmo/tool/Logger.h
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
         QINMO_LOG_LEVEL=3
