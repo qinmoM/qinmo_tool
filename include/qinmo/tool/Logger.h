@@ -1,8 +1,12 @@
 /**
- * @note logs maybe not write into file if terminater
- * @note do not use in other destructor of static classes
- * @note use `QINMO_LOG_LEVEL` to specify output level in cmake
+ * @note Logs maybe not write into file if terminater
+ * @note Buffered logs may be lost if the process terminates abnormally.
+ * @note Use options to specify output level in cmake:
+ *   - `QINMO_LOG_LEVEL`        -- 0 ~ 5 : trace ~ fatal
+ *   - `QINMO_LOG_OUTPUT_MODEL` -- None: ignore; Console: print to console; SingleFile: output to the single file.
+ *   - `QINMO_LOG_PATH`         -- semantics different depending on the model: file, path or nothing
  */
+
 #pragma once
 
 #include "StringConcat.h"
@@ -15,9 +19,9 @@
 namespace qinmo
 {
 
-/// @note log level
-/// if macro is defined, logs of the level will be written into the log file
-/// if not needed, simply comment out the macro
+/*
+        log level
+*/
 #ifndef QINMO_LOG_LEVEL
 #define QINMO_LOG_LEVEL 3
 #endif
@@ -41,19 +45,46 @@ namespace qinmo
 #define _QINMO_ENABLE_FATAL
 #endif
 
+#if QINMO_LOG_LEVEL < 0 || QINMO_LOG_LEVEL > 5
+#error "QINMO_LOG_LEVEL must be between 0 and 5"
+#endif
 
-enum class LogOutputModel
+
+/*
+        log output model
+*/
+enum class LogOutputModel : int
 {
     None,               // ignore
     Console,            // print to console
     SingleFile          // output to the single file
 };
 
+#ifndef QINMO_LOG_OUTPUT_MODEL
+#define QINMO_LOG_OUTPUT_MODEL Console
+#endif
+
+static_assert(
+    LogOutputModel::None == LogOutputModel::QINMO_LOG_OUTPUT_MODEL ||
+    LogOutputModel::Console == LogOutputModel::QINMO_LOG_OUTPUT_MODEL ||
+    LogOutputModel::SingleFile == LogOutputModel::QINMO_LOG_OUTPUT_MODEL,
+    "Invalid QINMO_LOG_OUTPUT_MODEL"
+);
+
+
+/*
+        log output path
+*/
+#ifndef QINMO_LOG_PATH
+#define QINMO_LOG_PATH "qinmo.log"
+#endif
+
 
 /// @namespace qinmo::log::detail
 /// @warning For internal use only, do NOT use it from outside the library
 namespace detail
 {
+
 ///
 /// @brief write logger class
 ///
@@ -72,108 +103,36 @@ public:
     template<typename... Args>
     void log(Args&&... args)
     {
+        if (LogOutputModel::None == model_)
+            return;
+
         std::string time = detail::nowMicrosecondsString();
         std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:");
         std::string str = qinmo::concat("[UTC:", time, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
 
-        std::unique_lock<std::mutex> lock(mutex_);
-        std::unique_lock<std::mutex> subLock(subMutex_);
+        if (LogOutputModel::Console == model_)
+            return qinmo::print(str);
 
-        if (LogOutputModel::None == model_)
+        if (LogOutputModel::SingleFile == model_)
         {
-            return;
-        }
-        else if (LogOutputModel::Console == model_)
-        {
-            qinmo::print(str);
-            return;
-        }
-        else if (LogOutputModel::SingleFile == model_)
-        {
+            std::unique_lock<std::mutex> lock(mutex_);
             queue_.push(std::move(str));
             if (queue_.size() >= 1024)
             {
-                subLock.unlock();
+                lock.unlock();
                 cv_.notify_one();
             }
         }
     }
 
-    bool setModel(const LogOutputModel& model, const std::string& path)
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-
-        if (LogOutputModel::None == model)
-        {
-            if (LogOutputModel::Console == model_)
-            {
-                model_ = model;
-                return true;
-            }
-            else if (LogOutputModel::SingleFile == model_)
-            {
-                flushAndCloseInMainLock();
-                model_ = model;
-                return true;
-            }
-            return true;
-        }
-        else if (LogOutputModel::Console == model)
-        {
-            if (LogOutputModel::None == model_)
-            {
-                model_ = model;
-                return true;
-            }
-            else if (LogOutputModel::SingleFile == model_)
-            {
-
-                flushAndCloseInMainLock();
-                model_ = model;
-                return true;
-            }
-            return true;
-        }
-        else if (LogOutputModel::SingleFile == model)
-        {
-            if (LogOutputModel::None == model_)
-            {
-                std::lock_guard<std::mutex> subLock(subMutex_);
-                ofs_.open(path, std::ios::app);
-                if (!ofs_.is_open())
-                    return false;
-
-                model_ = model;
-                return true;
-            }
-            else if (LogOutputModel::Console == model_)
-            {
-                std::lock_guard<std::mutex> subLock(subMutex_);
-                ofs_.open(path, std::ios::app);
-                if (!ofs_.is_open())
-                    return false;
-
-                model_ = model;
-                return true;
-            }
-
-            std::ofstream newFile(path, std::ios::app);
-            if (!newFile.is_open())
-                return false;
-
-            ofs_.close();
-            ofs_ = std::move(newFile);
-            return true;
-        }
-        return false;
-    }
-
     /// @brief flush buffer
     void flush()
     {
+        if (LogOutputModel::SingleFile != model_)
+            return;
+
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            std::lock_guard<std::mutex> subLock(subMutex_);
             needtoFlush_ = true;
         }
         cv_.notify_one();
@@ -184,7 +143,7 @@ private:
     {
         while (true)
         {
-            std::unique_lock<std::mutex> lock(subMutex_);
+            std::unique_lock<std::mutex> lock(mutex_);
             cv_.wait_for(lock, std::chrono::seconds(1), [this]() -> bool { return 1024 <= queue_.size() || !running_ || needtoFlush_; });
 
             if (!running_ && queue_.empty())
@@ -205,23 +164,10 @@ private:
         }
     }
 
-    void flushAndCloseInMainLock()
-    {
-        std::lock_guard<std::mutex> subLock(subMutex_);
-        while (!queue_.empty())
-        {
-            ofs_ << queue_.front();
-            queue_.pop();
-        }
-        ofs_.flush();
-        ofs_.close();
-    }
-
     void closeThread()
     {
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            std::lock_guard<std::mutex> subLock(subMutex_);
             running_ = false;
         }
 
@@ -238,11 +184,18 @@ private:
     }
 
     Logger()
-        : model_(LogOutputModel::Console)
+        : model_(LogOutputModel::QINMO_LOG_OUTPUT_MODEL)
         , needtoFlush_(false)
         , running_(true)
     {
-        thread_ = std::thread([this]() -> void { threadWorkFunc(); });
+        if (LogOutputModel::SingleFile == model_)
+        {
+            ofs_.open(QINMO_LOG_PATH, std::ios::app);
+            if (!ofs_.is_open())
+                throw std::logic_error("Logger::Logger: log file does not exist.");
+
+            thread_ = std::thread([this]() -> void { threadWorkFunc(); });
+        }
     }
 
     ~Logger()
@@ -256,10 +209,9 @@ private:
     std::queue<std::string> queue_;
 
     std::mutex mutex_;
-    std::mutex subMutex_;
     std::condition_variable cv_;
 
-    LogOutputModel model_;
+    const LogOutputModel model_;
     bool needtoFlush_;
     bool running_;
 
@@ -355,14 +307,6 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 #endif
 
 
-
-/// @brief set log model
-/// @note must be call before any `QINMO_XXX`
-/// @return true if successful, otherwise false
-inline bool logSetModel(const LogOutputModel& model, const std::string& path = "")
-{
-    return detail::Logger::instance().setModel(model, path);
-}
 
 /// @brief try to flush buffer in file model
 inline void logFlush()
