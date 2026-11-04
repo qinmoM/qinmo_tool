@@ -1,5 +1,6 @@
 /**
- * @note Perfer 'exit' over 'terminater', otherwise logs maybe not write into file
+ * @note logs maybe not write into file if terminater
+ * @note use `QINMO_LOG_LEVEL` to specify output level in cmake
  */
 #pragma once
 

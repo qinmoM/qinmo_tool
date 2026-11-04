@@ -2,7 +2,7 @@
  * @file <qinmo/tool.h>
  * @brief A Simple Commoly-used Tool Library
  * @details Example: Random, println, StringView ...
- * @version 6.0.0
+ * @version 7.0.1
  * @author qinmoM
  * @github https://github.com/qinmoM/qinmo_tool
  */
@@ -19,3 +19,5 @@
 /// @note the ache line interference size may vary between compilers, compiler versions and CPU tuning options
 #include "qinmo/tool/MPMCUnbounded.h"
 #endif
+
+#include "qinmo/tool/Logger.h"
