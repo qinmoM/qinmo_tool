@@ -58,9 +58,12 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 # change log level
+# see detail: qinmo/tool/Logger.h
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
-        QINMO_LOG_LEVEL=3 # output trace ~ fatal level: 0 ~ 5
+        QINMO_LOG_LEVEL=3
+        QINMO_LOG_OUTPUT_MODEL=SingleFile
+        QINMO_LOG_PATH="app.log"
 )
 ```
 
