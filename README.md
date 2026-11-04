@@ -56,6 +56,12 @@ target_link_libraries(${PROJECT_NAME}
     PRIVATE
         qinmo_tool
 )
+
+# change log level
+target_compile_definitions(${PROJECT_NAME}
+    PRIVATE
+        QINMO_LOG_LEVEL=3 # output trace ~ fatal level: 0 ~ 5
+)
 ```
 
 - Include header.
