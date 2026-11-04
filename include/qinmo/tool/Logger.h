@@ -203,7 +203,6 @@ private:
 
             ofs_.flush();
         }
-        qinmo::println("work quit");
     }
 
     void flushAndCloseInMainLock()
@@ -357,11 +356,15 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 
 
 
+/// @brief set log model
+/// @note must be call before any `QINMO_XXX`
+/// @return true if successful, otherwise false
 inline bool logSetModel(const LogOutputModel& model, const std::string& path = "")
 {
     return detail::Logger::instance().setModel(model, path);
 }
 
+/// @brief try to flush buffer in file model
 inline void logFlush()
 {
     return detail::Logger::instance().flush();
