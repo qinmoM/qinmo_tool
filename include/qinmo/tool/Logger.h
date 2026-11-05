@@ -1,10 +1,9 @@
 /**
- * @note Logs maybe not write into file if terminater
  * @note Buffered logs may be lost if the process terminates abnormally.
  * @note Use options to specify output level in cmake:
  *   - `QINMO_LOG_LEVEL`        -- 0 ~ 5 : trace ~ fatal
  *   - `QINMO_LOG_OUTPUT_MODEL` -- 0: ignore; 1: print to console; 2: output to the single file; 3: output to the diference files for date.
- *   - `QINMO_LOG_PATH`         -- semantics different depending on the model: file, path or nothing
+ *   - `QINMO_LOG_PATH`         -- semantics different depending on the model: nothing, file or path(must be exists)
  */
 
 #pragma once
@@ -16,6 +15,7 @@
 #include <condition_variable>
 #include <fstream>
 #include <queue>
+#include <stdexcept>
 
 namespace qinmo
 {
@@ -319,7 +319,6 @@ private:
         if (!ofs_.is_open())
             throw std::logic_error("Logger::Logger: log file does not exist.");
 
-        ofs_ << '\n';
         thread_ = std::thread([this](std::string currentDate) -> void { threadWorkFunc(currentDate); }, date);
 #endif
     }
