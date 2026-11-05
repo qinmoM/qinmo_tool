@@ -62,7 +62,7 @@ target_link_libraries(${PROJECT_NAME}
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
         QINMO_LOG_LEVEL=3
-        QINMO_LOG_OUTPUT_MODEL=SingleFile
+        QINMO_LOG_OUTPUT_MODEL=2
         QINMO_LOG_PATH="app.log"
 )
 ```

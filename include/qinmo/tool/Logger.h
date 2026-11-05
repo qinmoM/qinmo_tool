@@ -3,7 +3,7 @@
  * @note Buffered logs may be lost if the process terminates abnormally.
  * @note Use options to specify output level in cmake:
  *   - `QINMO_LOG_LEVEL`        -- 0 ~ 5 : trace ~ fatal
- *   - `QINMO_LOG_OUTPUT_MODEL` -- None: ignore; Console: print to console; SingleFile: output to the single file.
+ *   - `QINMO_LOG_OUTPUT_MODEL` -- 0: ignore; 1: print to console; 2: output to the single file; 3: output to the diference files for date.
  *   - `QINMO_LOG_PATH`         -- semantics different depending on the model: file, path or nothing
  */
 
@@ -54,30 +54,24 @@ namespace qinmo
 /*
         log output model
 */
-enum class LogOutputModel : int
-{
-    None,               // ignore
-    Console,            // print to console
-    SingleFile          // output to the single file
-};
-
 #ifndef QINMO_LOG_OUTPUT_MODEL
-#define QINMO_LOG_OUTPUT_MODEL Console
+#define QINMO_LOG_OUTPUT_MODEL 1
 #endif
 
-static_assert(
-    LogOutputModel::None == LogOutputModel::QINMO_LOG_OUTPUT_MODEL ||
-    LogOutputModel::Console == LogOutputModel::QINMO_LOG_OUTPUT_MODEL ||
-    LogOutputModel::SingleFile == LogOutputModel::QINMO_LOG_OUTPUT_MODEL,
-    "Invalid QINMO_LOG_OUTPUT_MODEL"
-);
+#if 3 == QINMO_LOG_OUTPUT_MODEL && !defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME)
+#error "This platform does not support the `MultiFilesByDate` model"
+#endif
 
 
 /*
         log output path
 */
 #ifndef QINMO_LOG_PATH
+#if 3 == QINMO_LOG_OUTPUT_MODEL
+#define QINMO_LOG_PATH "qinmoLogs/"
+#else
 #define QINMO_LOG_PATH "qinmo.log"
+#endif
 #endif
 
 
@@ -85,6 +79,31 @@ static_assert(
 /// @warning For internal use only, do NOT use it from outside the library
 namespace detail
 {
+
+enum class LogOutputModel : int
+{
+    None = 0,               // ignore
+    Console = 1,            // print to console
+    SingleFile = 2,         // output to the single file
+    MultiFilesByDate = 3    // output to the difference files for date
+};
+
+static_assert(
+    QINMO_LOG_OUTPUT_MODEL >= 0 && QINMO_LOG_OUTPUT_MODEL <= 3,
+    "Invalid QINMO_LOG_OUTPUT_MODEL"
+);
+
+
+#if 3 == QINMO_LOG_OUTPUT_MODEL
+struct LogEntry
+{
+    std::string date;
+    std::string content;
+};
+#else
+using LogEntry = std::string;
+#endif
+
 
 ///
 /// @brief write logger class
@@ -124,12 +143,16 @@ public:
                 cv_.notify_one();
             }
         }
+        else if (LogOutputModel::MultiFilesByDate == model_)
+        {
+            ;
+        }
     }
 
     /// @brief flush buffer
     void flush()
     {
-        if (LogOutputModel::SingleFile != model_)
+        if (LogOutputModel::SingleFile != model_ && LogOutputModel::MultiFilesByDate != model_)
             return;
 
         {
@@ -151,7 +174,7 @@ private:
                 break;
 
             needtoFlush_ = false;
-            std::queue<std::string> temp;
+            std::queue<LogEntry> temp;
             std::swap(temp, queue_);
             lock.unlock();
 
@@ -177,7 +200,7 @@ private:
         if (thread_.joinable())
             thread_.join();
 
-        if (LogOutputModel::SingleFile == model_)
+        if (LogOutputModel::SingleFile == model_ || LogOutputModel::MultiFilesByDate == model_)
         {
             ofs_.flush();
             ofs_.close();
@@ -185,7 +208,7 @@ private:
     }
 
     Logger()
-        : model_(LogOutputModel::QINMO_LOG_OUTPUT_MODEL)
+        : model_(static_cast<LogOutputModel>(QINMO_LOG_OUTPUT_MODEL))
         , needtoFlush_(false)
         , running_(true)
     {
@@ -202,6 +225,10 @@ private:
             ofs_ << '\n';
             thread_ = std::thread([this]() -> void { threadWorkFunc(); });
         }
+        else if (LogOutputModel::MultiFilesByDate == model_)
+        {
+            ;
+        }
     }
 
     ~Logger()
@@ -212,7 +239,7 @@ private:
 private:
     std::ofstream ofs_;
     std::thread thread_;
-    std::queue<std::string> queue_;
+    std::queue<LogEntry> queue_;
 
     std::mutex mutex_;
     std::condition_variable cv_;
