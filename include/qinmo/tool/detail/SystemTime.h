@@ -34,14 +34,14 @@ inline bool gmtime(const ::time_t& time, std::tm& tm)
 
 /// @brief current UTC time string including microseconds
 /// @return empty string on failure
-inline std::string nowMicrosecondsString()
+inline std::string nowMicrosecondsString(long long microseconds)
 {
 #if !defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME)
     return "";
 #endif
     // UTC time
-    long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
-        std::chrono::system_clock::now().time_since_epoch()).count();
+    // long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+    //     std::chrono::system_clock::now().time_since_epoch()).count();
 
     time_t t = microseconds / 1000000;
     std::tm tm;
@@ -51,8 +51,35 @@ inline std::string nowMicrosecondsString()
     char buf[32] = "";
     int len = std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
 
-    if (0 == len) return "";
+    if (0 == len)
+        return "";
+
     len += std::snprintf(buf + len, sizeof(buf) - len, ".%06lld", microseconds % 1000000);
+
+    return std::string(buf, len);
+}
+
+/// @brief current UTC time string including date
+/// @return empty string on failure
+inline std::string nowDateString(long long microseconds)
+{
+#if !defined(QINMO_DETAIL_SUPPORTED_PLATFORM_TIME)
+    return "";
+#endif
+    // UTC time
+    // long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+    //     std::chrono::system_clock::now().time_since_epoch()).count();
+
+    time_t t = microseconds / 1000000;
+    std::tm tm;
+    if (!detail::gmtime(t, tm))
+        return "";
+
+    char buf[16] = "";
+    int len = std::strftime(buf, sizeof(buf), "%Y-%m-%d", &tm);
+
+    if (0 == len)
+        return "";
 
     return std::string(buf, len);
 }

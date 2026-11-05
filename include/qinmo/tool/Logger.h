@@ -127,10 +127,11 @@ public:
 #if 0 == QINMO_LOG_OUTPUT_MODEL
         return;
 #endif
-
-        std::string time = detail::nowMicrosecondsString();
+        long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        std::string timeMicro = detail::nowMicrosecondsString(microseconds);
         std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:");
-        std::string str = qinmo::concat("[UTC:", time, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
+        std::string str = qinmo::concat("[UTC:", timeMicro, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
 
         // Console
 #if 1 == QINMO_LOG_OUTPUT_MODEL
@@ -150,7 +151,13 @@ public:
 
         // MultiFilesByDate
 #if 3 == QINMO_LOG_OUTPUT_MODEL
-        ;
+        std::unique_lock<std::mutex> lock(mutex_);
+        queue_.emplace(detail::nowDateString(microseconds), std::move(str));
+        if (queue_.size() >= 1024)
+        {
+            lock.unlock();
+            cv_.notify_one();
+        }
 #endif
     }
 
@@ -169,7 +176,12 @@ public:
     }
 
 private:
+
+#if 3 == QINMO_LOG_OUTPUT_MODEL
+    void threadWorkFunc(std::string currentDate)
+#else
     void threadWorkFunc()
+#endif
     {
 #if 2 == QINMO_LOG_OUTPUT_MODEL
         while (true)
@@ -200,8 +212,6 @@ private:
             ofs_.close();
         }
 #elif 3 == QINMO_LOG_OUTPUT_MODEL
-        std::string currentDate;
-
         while (true)
         {
             std::unique_lock<std::mutex> lock(mutex_);
@@ -233,11 +243,11 @@ private:
                         ofs_.close();
                     }
 
-                    ofs_.open(data.date + ".log", std::ios::app);
+                    ofs_.open(getValidPathByTime(data.date), std::ios::app);
 
                     if (!ofs_.is_open())
                     {
-                        // 错误处理
+                        throw std::logic_error("Logger::threadWorkFunc: ");
                     }
 
                     currentDate = data.date;
@@ -271,6 +281,15 @@ private:
             thread_.join();
     }
 
+    std::string getValidPathByTime(const std::string& date)
+    {
+        std::string path(QINMO_LOG_PATH);
+        if (!path.empty() && '\\' != path.back() && '/' != path.back())
+            path += '/';
+
+        return path + date + ".log";
+    }
+
     Logger()
         : needtoFlush_(false)
         , running_(true)
@@ -291,6 +310,17 @@ private:
 #endif
 
 #if 3 == QINMO_LOG_OUTPUT_MODEL
+
+        long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+            std::chrono::system_clock::now().time_since_epoch()).count();
+        std::string date = detail::nowDateString(microseconds);
+
+        ofs_.open(getValidPathByTime(date), std::ios::app);
+        if (!ofs_.is_open())
+            throw std::logic_error("Logger::Logger: log file does not exist.");
+
+        ofs_ << '\n';
+        thread_ = std::thread([this](std::string currentDate) -> void { threadWorkFunc(currentDate); }, date);
 #endif
     }
 
