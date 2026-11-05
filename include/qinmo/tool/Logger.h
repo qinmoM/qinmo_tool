@@ -123,37 +123,43 @@ public:
     template<typename... Args>
     void log(Args&&... args)
     {
-        if (LogOutputModel::None == model_)
-            return;
+        // None
+#if 0 == QINMO_LOG_OUTPUT_MODEL
+        return;
+#endif
 
         std::string time = detail::nowMicrosecondsString();
         std::string tid = "[TID:" + std::string(detail::g_isOsTid ? "OS:" : "CPP-API:");
         std::string str = qinmo::concat("[UTC:", time, "] ", tid, detail::getNativeTid(), "] ", args..., '\n');
 
-        if (LogOutputModel::Console == model_)
-            return qinmo::print(str);
+        // Console
+#if 1 == QINMO_LOG_OUTPUT_MODEL
+        return qinmo::print(str);
+#endif
 
-        if (LogOutputModel::SingleFile == model_)
+        // SingleFile
+#if 2 == QINMO_LOG_OUTPUT_MODEL
+        std::unique_lock<std::mutex> lock(mutex_);
+        queue_.push(std::move(str));
+        if (queue_.size() >= 1024)
         {
-            std::unique_lock<std::mutex> lock(mutex_);
-            queue_.push(std::move(str));
-            if (queue_.size() >= 1024)
-            {
-                lock.unlock();
-                cv_.notify_one();
-            }
+            lock.unlock();
+            cv_.notify_one();
         }
-        else if (LogOutputModel::MultiFilesByDate == model_)
-        {
-            ;
-        }
+#endif
+
+        // MultiFilesByDate
+#if 3 == QINMO_LOG_OUTPUT_MODEL
+        ;
+#endif
     }
 
     /// @brief flush buffer
     void flush()
     {
-        if (LogOutputModel::SingleFile != model_ && LogOutputModel::MultiFilesByDate != model_)
-            return;
+#if 0 == QINMO_LOG_OUTPUT_MODEL || 1 == QINMO_LOG_OUTPUT_MODEL
+        return;
+#endif
 
         {
             std::lock_guard<std::mutex> lock(mutex_);
@@ -165,6 +171,7 @@ public:
 private:
     void threadWorkFunc()
     {
+#if 2 == QINMO_LOG_OUTPUT_MODEL
         while (true)
         {
             std::unique_lock<std::mutex> lock(mutex_);
@@ -186,6 +193,69 @@ private:
 
             ofs_.flush();
         }
+
+        if (ofs_.is_open())
+        {
+            ofs_.flush();
+            ofs_.close();
+        }
+#elif 3 == QINMO_LOG_OUTPUT_MODEL
+        std::string currentDate;
+
+        while (true)
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+
+            cv_.wait_for(lock, std::chrono::seconds(1), [this]() -> bool
+            {
+                return 1024 <= queue_.size() || !running_ || needtoFlush_;
+            });
+
+            if (!running_ && queue_.empty())
+                break;
+
+            needtoFlush_ = false;
+
+            std::queue<LogEntry> temp;
+            std::swap(temp, queue_);
+
+            lock.unlock();
+
+            while (!temp.empty())
+            {
+                LogEntry& data = temp.front();
+
+                if (data.date != currentDate)
+                {
+                    if (ofs_.is_open())
+                    {
+                        ofs_.flush();
+                        ofs_.close();
+                    }
+
+                    ofs_.open(data.date + ".log", std::ios::app);
+
+                    if (!ofs_.is_open())
+                    {
+                        // 错误处理
+                    }
+
+                    currentDate = data.date;
+                }
+
+                ofs_ << data.content;
+                temp.pop();
+            }
+
+            ofs_.flush();
+        }
+
+        if (ofs_.is_open())
+        {
+            ofs_.flush();
+            ofs_.close();
+        }
+#endif
     }
 
     void closeThread()
@@ -199,36 +269,29 @@ private:
 
         if (thread_.joinable())
             thread_.join();
-
-        if (LogOutputModel::SingleFile == model_ || LogOutputModel::MultiFilesByDate == model_)
-        {
-            ofs_.flush();
-            ofs_.close();
-        }
     }
 
     Logger()
-        : model_(static_cast<LogOutputModel>(QINMO_LOG_OUTPUT_MODEL))
-        , needtoFlush_(false)
+        : needtoFlush_(false)
         , running_(true)
     {
-        if (LogOutputModel::Console == model_)
-        {
-            qinmo::println();
-        }
-        else if (LogOutputModel::SingleFile == model_)
-        {
-            ofs_.open(QINMO_LOG_PATH, std::ios::app);
-            if (!ofs_.is_open())
-                throw std::logic_error("Logger::Logger: log file does not exist.");
+        // Console
+#if 1 == QINMO_LOG_OUTPUT_MODEL
+        qinmo::println();
+#endif
 
-            ofs_ << '\n';
-            thread_ = std::thread([this]() -> void { threadWorkFunc(); });
-        }
-        else if (LogOutputModel::MultiFilesByDate == model_)
-        {
-            ;
-        }
+        // SingleFile
+#if 2 == QINMO_LOG_OUTPUT_MODEL
+        ofs_.open(QINMO_LOG_PATH, std::ios::app);
+        if (!ofs_.is_open())
+            throw std::logic_error("Logger::Logger: log file does not exist.");
+
+        ofs_ << '\n';
+        thread_ = std::thread([this]() -> void { threadWorkFunc(); });
+#endif
+
+#if 3 == QINMO_LOG_OUTPUT_MODEL
+#endif
     }
 
     ~Logger()
@@ -244,7 +307,6 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 
-    const LogOutputModel model_;
     bool needtoFlush_;
     bool running_;
 
