@@ -99,6 +99,11 @@ struct LogEntry
 {
     std::string date;
     std::string content;
+
+    LogEntry(const std::string d, const std::string c)
+        : date(d)
+        , content(c)
+    { }
 };
 #else
 using LogEntry = std::string;
@@ -177,11 +182,7 @@ public:
 
 private:
 
-#if 3 == QINMO_LOG_OUTPUT_MODEL
-    void threadWorkFunc(std::string currentDate)
-#else
     void threadWorkFunc()
-#endif
     {
 #if 2 == QINMO_LOG_OUTPUT_MODEL
         while (true)
@@ -212,23 +213,19 @@ private:
             ofs_.close();
         }
 #elif 3 == QINMO_LOG_OUTPUT_MODEL
+        std::string currentDate;
+
         while (true)
         {
             std::unique_lock<std::mutex> lock(mutex_);
-
-            cv_.wait_for(lock, std::chrono::seconds(1), [this]() -> bool
-            {
-                return 1024 <= queue_.size() || !running_ || needtoFlush_;
-            });
+            cv_.wait_for(lock, std::chrono::seconds(1), [this]() -> bool { return 1024 <= queue_.size() || !running_ || needtoFlush_; });
 
             if (!running_ && queue_.empty())
                 break;
 
             needtoFlush_ = false;
-
             std::queue<LogEntry> temp;
             std::swap(temp, queue_);
-
             lock.unlock();
 
             while (!temp.empty())
@@ -283,11 +280,7 @@ private:
 
     std::string getValidPathByTime(const std::string& date)
     {
-        std::string path(QINMO_LOG_PATH);
-        if (!path.empty() && '\\' != path.back() && '/' != path.back())
-            path += '/';
-
-        return path + date + ".log";
+        return path_ + date + ".log";
     }
 
     Logger()
@@ -309,17 +302,17 @@ private:
         thread_ = std::thread([this]() -> void { threadWorkFunc(); });
 #endif
 
+        // MultiFilesByDate
 #if 3 == QINMO_LOG_OUTPUT_MODEL
+        path_ = std::string(QINMO_LOG_PATH);
+        if (!path_.empty() && '\\' != path_.back() && '/' != path_.back())
+            path_ += '/';
 
         long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
             std::chrono::system_clock::now().time_since_epoch()).count();
         std::string date = detail::nowDateString(microseconds);
 
-        ofs_.open(getValidPathByTime(date), std::ios::app);
-        if (!ofs_.is_open())
-            throw std::logic_error("Logger::Logger: log file does not exist.");
-
-        thread_ = std::thread([this](std::string currentDate) -> void { threadWorkFunc(currentDate); }, date);
+        thread_ = std::thread([this]() -> void { threadWorkFunc(); });
 #endif
     }
 
@@ -336,6 +329,7 @@ private:
     std::mutex mutex_;
     std::condition_variable cv_;
 
+    std::string path_;
     bool needtoFlush_;
     bool running_;
 
