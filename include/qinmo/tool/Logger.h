@@ -100,9 +100,9 @@ struct LogEntry
     std::string date;
     std::string content;
 
-    LogEntry(const std::string d, const std::string c)
-        : date(d)
-        , content(c)
+    LogEntry(std::string d, std::string c)
+        : date(std::move(d))
+        , content(std::move(c))
     { }
 };
 #else
@@ -239,7 +239,7 @@ private:
 
                     if (!ofsTemp.is_open())
                     {
-                        qinmo::print("Failed to open ", pathTemp, ". -- ", data.content);
+                        qinmo::print("Failed to open ", pathTemp, " --> ", data.content);
                         temp.pop();
                         continue;
                     }
@@ -258,7 +258,8 @@ private:
                 temp.pop();
             }
 
-            ofs_.flush();
+            if (ofs_.is_open())
+                ofs_.flush();
         }
 
         if (ofs_.is_open())
@@ -311,10 +312,6 @@ private:
         path_ = std::string(QINMO_LOG_PATH);
         if (!path_.empty() && '\\' != path_.back() && '/' != path_.back())
             path_ += '/';
-
-        long long microseconds = std::chrono::duration_cast<std::chrono::microseconds>(
-            std::chrono::system_clock::now().time_since_epoch()).count();
-        std::string date = detail::nowDateString(microseconds);
 
         thread_ = std::thread([this]() -> void { threadWorkFunc(); });
 #endif
@@ -413,7 +410,7 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 #endif
 
 /// @brief Error, affects a single operation, but the program remain running.
-/// @note flush the buffer immediately
+/// @note Request an immediate buffer flush
 #ifdef QINMO_DETAIL_ENABLE_ERROR
     #define QINMO_ERROR(...) do { qinmo::detail::error_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
@@ -421,7 +418,7 @@ void fatal_implicit(const char* file, int line, Args&&... args)
 #endif
 
 /// @brief Fatal error, the program cannot run normally.
-/// @note flush the buffer immediately
+/// @note Request an immediate buffer flush
 #ifdef QINMO_DETAIL_ENABLE_FATAL
     #define QINMO_FATAL(...) do { qinmo::detail::fatal_implicit(__FILE__, __LINE__, __VA_ARGS__); } while(false)
 #else
