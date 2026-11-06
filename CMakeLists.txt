@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 3.10)
 project(qinmo_tool)
 
 
+file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/qinmoLogs/)
+
+
 add_library(qinmo_tool
     ./src/Optional.cpp
     ./src/detail.cpp

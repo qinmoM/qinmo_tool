@@ -234,19 +234,23 @@ private:
 
                 if (data.date != currentDate)
                 {
+                    std::string pathTemp = getValidPathByTime(data.date);
+                    std::ofstream ofsTemp(pathTemp, std::ios::app);
+
+                    if (!ofsTemp.is_open())
+                    {
+                        qinmo::print("Failed to open ", pathTemp, ". -- ", data.content);
+                        temp.pop();
+                        continue;
+                    }
+
                     if (ofs_.is_open())
                     {
                         ofs_.flush();
                         ofs_.close();
                     }
 
-                    ofs_.open(getValidPathByTime(data.date), std::ios::app);
-
-                    if (!ofs_.is_open())
-                    {
-                        throw std::logic_error("Logger::threadWorkFunc: ");
-                    }
-
+                    ofs_ = std::move(ofsTemp);
                     currentDate = data.date;
                 }
 
