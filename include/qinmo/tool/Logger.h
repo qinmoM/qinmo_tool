@@ -62,6 +62,11 @@ namespace qinmo
 #error "This platform does not support the `MultiFilesByDate` model"
 #endif
 
+static_assert(
+    QINMO_LOG_OUTPUT_MODEL >= 0 && QINMO_LOG_OUTPUT_MODEL <= 3,
+    "Invalid QINMO_LOG_OUTPUT_MODEL"
+);
+
 
 /*
         log output path
@@ -87,11 +92,6 @@ enum class LogOutputModel : int
     SingleFile = 2,         // output to the single file
     MultiFilesByDate = 3    // output to the difference files for date
 };
-
-static_assert(
-    QINMO_LOG_OUTPUT_MODEL >= 0 && QINMO_LOG_OUTPUT_MODEL <= 3,
-    "Invalid QINMO_LOG_OUTPUT_MODEL"
-);
 
 
 #if 3 == QINMO_LOG_OUTPUT_MODEL

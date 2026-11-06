@@ -9,6 +9,11 @@
 
 int main()
 {
+    // Logger
+    QINMO_INFO("hello");
+    QINMO_DEBUG("world");
+    qinmo::logFlush();
+
     // print
     qinmo::println(qinmo::RandomInt(0, 3), 't', "h"); // output: 2th
 
@@ -62,8 +67,8 @@ target_link_libraries(${PROJECT_NAME}
 target_compile_definitions(${PROJECT_NAME}
     PRIVATE
         QINMO_LOG_LEVEL=3
-        QINMO_LOG_OUTPUT_MODEL=2
-        QINMO_LOG_PATH="app.log"
+        QINMO_LOG_OUTPUT_MODEL=3
+        QINMO_LOG_PATH="qinmoLogs/"
 )
 ```
 
