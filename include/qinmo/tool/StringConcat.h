@@ -63,8 +63,22 @@ constexpr int constexpr_compare(const char* a, const char* b, std::size_t count)
             : (*a) - (*b);
 }
 
-/// @brief Ascll only
+
+/// @return return true if the `ch` is a digit
+constexpr bool isDigit(char ch) noexcept { return ch >= '0' && ch <= '9'; }
+
+/// @return return true if the `ch` is a upper case
+constexpr bool isUpper(char ch) noexcept { return ch >= 'A' && ch <= 'Z'; }
+
+/// @return return true if the `ch` is a lower case
+constexpr bool isLower(char ch) noexcept { return ch >= 'a' && ch <= 'z'; }
+
+/// @return return true if the `ch` is a case
+constexpr bool isAlpha(char ch) noexcept { return isUpper(ch) || isLower(ch); }
+
 constexpr char toLower(char ch) noexcept { return ch >= 'A' && ch <= 'Z' ? static_cast<char>(ch + ('a' - 'A')) : ch; }
+
+constexpr char toUpper(char ch) noexcept { return ch >= 'a' && ch <= 'z' ? static_cast<char>(ch + ('A' - 'a')) : ch; }
 
 
 
