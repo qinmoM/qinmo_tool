@@ -63,6 +63,9 @@ constexpr int constexpr_compare(const char* a, const char* b, std::size_t count)
             : (*a) - (*b);
 }
 
+/// @brief Ascll only
+constexpr char toLower(char ch) noexcept { return ch >= 'A' && ch <= 'Z' ? static_cast<char>(ch + ('a' - 'A')) : ch; }
+
 
 
 /// @brief invalid index
