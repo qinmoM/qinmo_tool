@@ -105,7 +105,7 @@ public:
         if (pos > size())
             throw std::out_of_range(qinmo::concat("StringView::substr: pos(", pos, ") > size(", size(), ')'));
 
-        return StringView(data() + pos, data() + std::min(pos + n, size()));
+        return StringView(data() + pos, data() + pos + std::min(n, size() - pos));
     }
     /// @throw std::out_of_range  when  pos > size
     StringView subview(size_type pos = 0, size_type n = npos) const
@@ -113,7 +113,7 @@ public:
         if (pos > size())
             throw std::out_of_range(qinmo::concat("StringView::subview: pos(", pos, ") > size(", size(), ')'));
 
-        return StringView(data() + pos, data() + std::min(pos + n, size()));
+        return StringView(data() + pos, data() + pos + std::min(n, size() - pos));
     }
     /// @return <0 if  this < s , ==0 if equal, >0 if larger
     int compare(StringView s) const noexcept
